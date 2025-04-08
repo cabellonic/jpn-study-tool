@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "JpnStudyTool (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "JpnStudyTool (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
