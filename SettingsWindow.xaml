@@ -1,0 +1,158 @@
+<!--  SettingsWindow.xaml  -->
+<Window
+    x:Class="JpnStudyTool.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:JpnStudyTool.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:JpnStudyTool"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:JpnStudyTool.Models"
+    xmlns:viewmodels="using:JpnStudyTool.ViewModels"
+    Title="Settings"
+    mc:Ignorable="d">
+    <Grid
+        x:Name="SettingsRootGrid"
+        Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+        RequestedTheme="Light">
+        <Grid.Resources>
+            <converters:NegatedBooleanConverter x:Key="NegatedBooleanConverter" />
+        </Grid.Resources>
+
+        <Grid Margin="15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock
+                Grid.Row="0"
+                Margin="0,0,0,20"
+                FontSize="24"
+                Text="Settings" />
+            <StackPanel
+                Grid.Row="1"
+                Margin="0,0,0,15"
+                Spacing="5">
+                <CheckBox Content="Read clipboard content on startup" IsChecked="{Binding ReadClipboardOnLoad, Mode=TwoWay}" />
+            </StackPanel>
+            <Border
+                Grid.Row="2"
+                Margin="0,10,0,15"
+                BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1" />
+            <TextBlock
+                Grid.Row="3"
+                Margin="0,0,0,10"
+                FontSize="20"
+                Text="Input Bindings" />
+
+            <ListView
+                Grid.Row="4"
+                MaxHeight="400"
+                HorizontalContentAlignment="Stretch"
+                IsItemClickEnabled="False"
+                ItemsSource="{Binding Bindings}"
+                SelectionMode="None">
+                <ListView.HeaderTemplate>
+                    <DataTemplate>
+                        <Grid Padding="5,10" HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" MinWidth="100" />
+                                <ColumnDefinition Width="3*" MinWidth="120" />
+                                <ColumnDefinition Width="3*" MinWidth="120" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="Action" />
+                            <TextBlock
+                                Grid.Column="1"
+                                FontWeight="SemiBold"
+                                Text="Keyboard Binding" />
+                            <TextBlock
+                                Grid.Column="2"
+                                FontWeight="SemiBold"
+                                Text="Joystick Binding" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.HeaderTemplate>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:BindingConfig">
+                        <Grid
+                            Padding="5,5"
+                            HorizontalAlignment="Stretch"
+                            ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" MinWidth="100" />
+                                <ColumnDefinition Width="3*" MinWidth="120" />
+                                <ColumnDefinition Width="3*" MinWidth="120" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                Text="{x:Bind ActionName}"
+                                TextTrimming="CharacterEllipsis" />
+
+                            <Button
+                                Grid.Column="1"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding DataContext.StartCaptureKeyboardCommand, ElementName=SettingsRootGrid}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding KeyboardBindingDisplayResolved, FallbackValue='Set Keyboard'}"
+                                IsEnabled="{Binding DataContext.IsCapturingJoystick, ElementName=SettingsRootGrid, Converter={StaticResource NegatedBooleanConverter}}" />
+
+                            <Button
+                                Grid.Column="2"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding DataContext.StartCaptureJoystickCommand, ElementName=SettingsRootGrid}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding JoystickBindingDisplayResolved, FallbackValue='Set Joystick'}"
+                                IsEnabled="{Binding DataContext.IsCapturingKeyboard, ElementName=SettingsRootGrid, Converter={StaticResource NegatedBooleanConverter}}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <StackPanel
+                Grid.Row="5"
+                Margin="0,10,0,5"
+                HorizontalAlignment="Center"
+                Orientation="Vertical">
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    Foreground="OrangeRed"
+                    Text="{Binding CaptureStatusText}" />
+                <Button
+                    Margin="0,5,0,0"
+                    Command="{Binding CancelCaptureCommand}"
+                    Content="Cancel Capture" />
+                <!--  TODO: Visibility="{Binding CanCancelCapture, Converter={StaticResource BooleanToVisibilityConverter}}"  -->
+            </StackPanel>
+            <StackPanel
+                Grid.Row="6"
+                Margin="0,10,0,0"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal"
+                Spacing="10">
+                <Button Command="{Binding ResetKeyboardDefaultsCommand}" Content="Reset Keyboard Defaults" />
+                <Button Command="{Binding ResetJoystickDefaultsCommand}" Content="Reset Joystick Defaults" />
+            </StackPanel>
+            <StackPanel
+                Grid.Row="7"
+                Margin="0,20,0,0"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal"
+                Spacing="10">
+                <Button Command="{Binding SaveAndCloseCommand}" Content="Save and Close" />
+                <Button Command="{Binding CancelCommand}" Content="Cancel" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

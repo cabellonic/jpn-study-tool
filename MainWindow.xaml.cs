@@ -1,6 +1,7 @@
 // MainWindow.xaml.cs
 using Microsoft.UI.Xaml;
 using JpnStudyTool.ViewModels;
+using Microsoft.UI.Xaml.Controls;
 
 namespace JpnStudyTool;
 
@@ -22,6 +23,15 @@ public sealed partial class MainWindow : Window
 
         this.Title = "Jpn Study Tool v0.1";
         this.Closed += MainWindow_Closed;
+    }
+    private void HistoryListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Use ScrollIntoView to make sure the selected item is visible
+        if (sender is ListView listView && listView.SelectedItem != null)
+        {
+            listView.ScrollIntoView(listView.SelectedItem);
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] ScrollIntoView called for index {listView.SelectedIndex}");
+        }
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

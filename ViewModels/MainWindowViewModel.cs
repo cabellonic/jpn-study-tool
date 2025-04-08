@@ -1,48 +1,81 @@
 ﻿// ViewModels/MainWindowViewModel.cs
-using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using JpnStudyTool.Models;
 using JpnStudyTool.Services;
 using Microsoft.UI.Dispatching;
-using System.Linq;
-using System;
 
 namespace JpnStudyTool.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    // Data binding for the sentence history ListView
     public ObservableCollection<SentenceHistoryItem> SentenceHistory { get; } = new();
 
+    [ObservableProperty]
+    private int selectedSentenceIndex = -1;
+
+    [ObservableProperty]
+    private SentenceHistoryItem? selectedSentenceItem;
+
+    public ICommand OpenSettingsCommand { get; }
+
     private readonly ClipboardService _clipboardService;
-    private readonly DispatcherQueue _dispatcherQueue; // For UI thread updates
+    private readonly DispatcherQueue _dispatcherQueue;
 
     public MainWindowViewModel()
     {
-        // Must get the dispatcher for the UI thread this ViewModel is created on
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-
         _clipboardService = new ClipboardService();
         _clipboardService.JapaneseTextCopied += OnJapaneseTextCopied;
         _clipboardService.StartMonitoring();
+        OpenSettingsCommand = new RelayCommand(OpenSettingsWindow);
+    }
+
+    partial void OnSelectedSentenceIndexChanged(int value)
+    {
+        if (value >= 0 && value < SentenceHistory.Count)
+        {
+            SelectedSentenceItem = SentenceHistory[value];
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] Index changed to: {value}, Item: {SelectedSentenceItem?.Sentence.Substring(0, Math.Min(20, SelectedSentenceItem.Sentence.Length))}...");
+        }
+        else
+        {
+            SelectedSentenceItem = null;
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] Index changed to: {value} (No selection)");
+        }
+    }
+
+
+    private void OpenSettingsWindow()
+    {
+        try { var settingsWindow = new SettingsWindow(); settingsWindow.Activate(); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ViewModel] Error activating settings window: {ex.Message}"); }
     }
 
     private void OnJapaneseTextCopied(object? sender, string text)
     {
-        // Ensure collection modification happens on the UI thread
         _dispatcherQueue.TryEnqueue(() =>
         {
             var newItem = new SentenceHistoryItem(text);
             SentenceHistory.Add(newItem);
             System.Diagnostics.Debug.WriteLine($"[ViewModel] Added: {text.Substring(0, Math.Min(50, text.Length))}...");
+            SelectedSentenceIndex = SentenceHistory.Count - 1;
         });
     }
 
-    // Called when the associated window is closing
+    public void MoveSelection(int delta)
+    {
+        if (SentenceHistory.Count == 0) return;
+        int newIndex = SelectedSentenceIndex + delta;
+        SelectedSentenceIndex = Math.Clamp(newIndex, 0, SentenceHistory.Count - 1);
+    }
+
     public void Cleanup()
     {
         _clipboardService.StopMonitoring();
         _clipboardService.JapaneseTextCopied -= OnJapaneseTextCopied;
     }
-
 }
