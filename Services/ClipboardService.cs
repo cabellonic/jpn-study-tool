@@ -44,21 +44,15 @@ public class ClipboardService
 
         try
         {
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] AAAA!");
             DataPackageView content = Clipboard.GetContent();
             if (content == null) return;
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] BBBB!");
             if (!content.Contains(StandardDataFormats.Text)) return;
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] CCCC!");
        
             string text = await content.GetTextAsync();
             text = text.Replace("\r", "").Replace("\n", " ").Trim();
             if (string.IsNullOrWhiteSpace(text)) return;
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] DDDD!");
             if (text == _lastClipboardText) return;
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] EEEE!");
             if (!JapaneseTextDetector.ContainsJapanese(text)) return;
-            System.Diagnostics.Debug.WriteLine($"[ClipboardService] FFFF!");
 
             _lastClipboardText = text;
             System.Diagnostics.Debug.WriteLine($"[ClipboardService] Content changed: {text.Substring(0, Math.Min(50, text.Length))}...");
