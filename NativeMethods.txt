@@ -1,0 +1,8 @@
+IsWindowVisible
+ShowWindow
+SetForegroundWindow
+SetWindowPos
+Windows.Win32.UI.WindowsAndMessaging.SHOW_WINDOW_CMD
+Windows.Win32.UI.WindowsAndMessaging.SET_WINDOW_POS_FLAGS
+Windows.Win32.Foundation.HWND
+Windows.Win32.Foundation.BOOL
