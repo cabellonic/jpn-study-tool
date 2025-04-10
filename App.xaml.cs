@@ -1,5 +1,6 @@
 ﻿// App.xaml.cs
 using System;
+using JpnStudyTool.Models;
 using JpnStudyTool.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -17,6 +18,7 @@ namespace JpnStudyTool
         public static MainWindow? MainWin = null;
         private static GlobalHotkeyService? _hotkeyService;
         private static DispatcherQueue? _mainDispatcherQueue;
+        private static SettingsService? _settingsService;
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -33,29 +35,104 @@ namespace JpnStudyTool
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             _mainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            _settingsService = new SettingsService();
 
-            int targetVid = 0x057E; // Nintendo VID
-            int targetPid = 0x2009; // Pro Controller PID
+            ReloadAndRestartGlobalServices();
 
-            string toggleButton = "BTN_THUMBL";
-            string menuButton = "BTN_THUMBR";
+            // --- Load Config ---
+            AppSettings currentSettings = _settingsService.LoadSettings();
 
-            System.Diagnostics.Debug.WriteLine($"[App] Configuring GlobalHotkeyService - VID={targetVid:X4}, PID={targetPid:X4}, Toggle='{toggleButton}', Menu='{menuButton}'");
+            int? targetVid = currentSettings.SelectedGlobalGamepadVid;
+            int? targetPid = currentSettings.SelectedGlobalGamepadPid;
 
-            // --- Initialize Hotkey Service ---
-            try
+            currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_TOGGLE", out string? toggleButtonCode);
+            currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_MENU", out string? menuButtonCode);
+
+            System.Diagnostics.Debug.WriteLine($"[App] Loaded Settings - VID: {targetVid?.ToString("X4") ?? "None"}, PID: {targetPid?.ToString("X4") ?? "None"}");
+            System.Diagnostics.Debug.WriteLine($"[App] Loaded Settings - ToggleJoy: '{toggleButtonCode ?? "None"}', MenuJoy: '{menuButtonCode ?? "None"}'");
+
+            if (targetVid.HasValue && targetPid.HasValue)
             {
+                System.Diagnostics.Debug.WriteLine($"[App] Configuring GlobalHotkeyService with loaded settings...");
+                try
+                {
+                    _hotkeyService?.Dispose();
+                    _hotkeyService = new GlobalHotkeyService(
+                        _mainDispatcherQueue,
+                        targetVid.Value,
+                        targetPid.Value,
+                        toggleButtonCode,
+                        menuButtonCode);
+                    _hotkeyService.StartListener();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[App] Failed to start GlobalHotkeyService: {ex.Message}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[App] No global gamepad configured in settings. GlobalHotkeyService not started.");
                 _hotkeyService?.Dispose();
-                _hotkeyService = new GlobalHotkeyService(_mainDispatcherQueue, targetVid, targetPid, toggleButton, menuButton);
-                _hotkeyService.StartListener();
+                _hotkeyService = null;
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[App] Failed to start GlobalHotkeyService: {ex.Message}");
-            }
+
 
             MainWin = new MainWindow();
             MainWin.Activate();
+        }
+
+        public static void ReloadAndRestartGlobalServices()
+        {
+            System.Diagnostics.Debug.WriteLine("[App] Reloading settings and restarting global services...");
+
+            AppSettings currentSettings;
+            if (_settingsService == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[App] Error: SettingsService is null during reload.");
+                _settingsService = new SettingsService();
+            }
+            currentSettings = _settingsService.LoadSettings();
+
+
+            _hotkeyService?.StopListener();
+            _hotkeyService?.Dispose();
+            _hotkeyService = null;
+
+            int? targetVid = currentSettings.SelectedGlobalGamepadVid;
+            int? targetPid = currentSettings.SelectedGlobalGamepadPid;
+            currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_TOGGLE", out string? toggleButtonCode);
+            currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_MENU", out string? menuButtonCode);
+
+            System.Diagnostics.Debug.WriteLine($"[App] Reloaded Settings - VID: {targetVid?.ToString("X4") ?? "None"}, PID: {targetPid?.ToString("X4") ?? "None"}");
+            System.Diagnostics.Debug.WriteLine($"[App] Reloaded Settings - ToggleJoy: '{toggleButtonCode ?? "None"}', MenuJoy: '{menuButtonCode ?? "None"}'");
+
+            if (targetVid.HasValue && targetPid.HasValue)
+            {
+                System.Diagnostics.Debug.WriteLine($"[App] Configuring GlobalHotkeyService with reloaded settings...");
+                try
+                {
+                    _hotkeyService = new GlobalHotkeyService(
+                        _mainDispatcherQueue,
+                        targetVid.Value,
+                        targetPid.Value,
+                        toggleButtonCode,
+                        menuButtonCode);
+                    _hotkeyService.StartListener();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[App] Failed to restart GlobalHotkeyService: {ex.Message}");
+                    _hotkeyService = null;
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[App] No global gamepad configured in reloaded settings. GlobalHotkeyService not started.");
+                _hotkeyService = null;
+            }
+
+            System.Diagnostics.Debug.WriteLine("[App] Finished reloading global services.");
         }
 
         public static void RequestToggleWindow()
@@ -72,6 +149,30 @@ namespace JpnStudyTool
                 MainWin?.TriggerMenuToggle();
                 System.Diagnostics.Debug.WriteLine("[App] Menu toggle requested on UI thread.");
             });
+        }
+
+        public static void PauseGlobalHotkeys()
+        {
+            if (_hotkeyService != null)
+            {
+                _hotkeyService.PauseListener();
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[App] PauseGlobalHotkeys skipped: Service not running.");
+            }
+        }
+
+        public static void ResumeGlobalHotkeys()
+        {
+            if (_hotkeyService != null)
+            {
+                _hotkeyService.ResumeListener();
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[App] ResumeGlobalHotkeys skipped: Service not running.");
+            }
         }
 
         private Window? m_window;

@@ -24,6 +24,8 @@ public sealed partial class SettingsWindow : Window
         this.InitializeComponent();
         ViewModel = new SettingsViewModel();
 
+        App.PauseGlobalHotkeys();
+
         if (this.Content is FrameworkElement rootElement)
         {
             rootElement.DataContext = ViewModel;
@@ -32,7 +34,8 @@ public sealed partial class SettingsWindow : Window
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         ViewModel.RequestClose += ViewModel_RequestClose;
-        this.Closed += SettingsWindow_Closed; // For final cleanup
+        this.Activated += SettingsWindow_Activated;
+        this.Closed += SettingsWindow_Closed;
     }
 
     // Start/Stop Joystick polling when ViewModel capture state changes
@@ -154,12 +157,21 @@ public sealed partial class SettingsWindow : Window
         this.Close();
     }
 
+    private void SettingsWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            App.PauseGlobalHotkeys();
+        }
+    }
+
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.RequestClose -= ViewModel_RequestClose;
-        StopJoystickPolling();
         ViewModel.CleanupOnClose();
-        System.Diagnostics.Debug.WriteLine("[SettingsWindow] Closed.");
+        StopJoystickPolling();
+        App.ReloadAndRestartGlobalServices();
+        System.Diagnostics.Debug.WriteLine("[SettingsWindow] Closed and global services reloaded.");
     }
 }

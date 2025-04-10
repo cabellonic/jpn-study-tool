@@ -11,6 +11,7 @@
     xmlns:viewmodels="using:JpnStudyTool.ViewModels"
     Title="Settings"
     mc:Ignorable="d">
+
     <Grid
         x:Name="SettingsRootGrid"
         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
@@ -21,6 +22,7 @@
 
         <Grid Margin="15">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -36,25 +38,42 @@
                 Margin="0,0,0,20"
                 FontSize="24"
                 Text="Settings" />
+
             <StackPanel
                 Grid.Row="1"
                 Margin="0,0,0,15"
                 Spacing="5">
                 <CheckBox Content="Read clipboard content on startup" IsChecked="{Binding ReadClipboardOnLoad, Mode=TwoWay}" />
             </StackPanel>
+
             <Border
                 Grid.Row="2"
                 Margin="0,10,0,15"
                 BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
                 BorderThickness="0,0,0,1" />
-            <TextBlock
+
+            <StackPanel
                 Grid.Row="3"
+                Margin="0,0,0,10"
+                Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,5,0"
+                    VerticalAlignment="Center"
+                    Text="Global Hotkey Gamepad:" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontWeight="SemiBold"
+                    Text="{Binding DetectedGamepadName, FallbackValue='Detecting...'}" />
+            </StackPanel>
+
+            <TextBlock
+                Grid.Row="4"
                 Margin="0,0,0,10"
                 FontSize="20"
                 Text="Input Bindings" />
 
             <ListView
-                Grid.Row="4"
+                Grid.Row="5"
                 MaxHeight="400"
                 HorizontalContentAlignment="Stretch"
                 IsItemClickEnabled="False"
@@ -121,7 +140,7 @@
             </ListView>
 
             <StackPanel
-                Grid.Row="5"
+                Grid.Row="6"
                 Margin="0,10,0,5"
                 HorizontalAlignment="Center"
                 Orientation="Vertical">
@@ -132,11 +151,12 @@
                 <Button
                     Margin="0,5,0,0"
                     Command="{Binding CancelCaptureCommand}"
-                    Content="Cancel Capture" />
-                <!--  TODO: Visibility="{Binding CanCancelCapture, Converter={StaticResource BooleanToVisibilityConverter}}"  -->
+                    Content="Cancel Capture"
+                    IsEnabled="{Binding CanCancelCapture}" />
             </StackPanel>
+
             <StackPanel
-                Grid.Row="6"
+                Grid.Row="7"
                 Margin="0,10,0,0"
                 HorizontalAlignment="Right"
                 Orientation="Horizontal"
@@ -144,8 +164,9 @@
                 <Button Command="{Binding ResetKeyboardDefaultsCommand}" Content="Reset Keyboard Defaults" />
                 <Button Command="{Binding ResetJoystickDefaultsCommand}" Content="Reset Joystick Defaults" />
             </StackPanel>
+
             <StackPanel
-                Grid.Row="7"
+                Grid.Row="8"
                 Margin="0,20,0,0"
                 HorizontalAlignment="Right"
                 Orientation="Horizontal"

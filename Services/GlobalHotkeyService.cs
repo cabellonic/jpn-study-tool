@@ -74,6 +74,10 @@ public class GlobalHotkeyService : IDisposable
     private enum ControllerType { Unknown, Xbox, ProController }
     private ControllerType _activeControllerType = ControllerType.Unknown;
 
+
+    private readonly ManualResetEventSlim _pauseEvent = new(true);
+    private bool _isPaused = false;
+
     public GlobalHotkeyService(DispatcherQueue? uiDispatcherQueue,
                                int targetVendorId, int targetProductId,
                                string? configuredToggleButtonCode,
@@ -108,6 +112,29 @@ public class GlobalHotkeyService : IDisposable
         _cts?.Cancel();
     }
 
+    public void PauseListener()
+    {
+        if (!_isPaused)
+        {
+            _pauseEvent.Reset();
+            _isPaused = true;
+            System.Diagnostics.Debug.WriteLine("[GlobalHotkeyService] Listener paused.");
+        }
+    }
+
+    public void ResumeListener()
+    {
+        if (_isPaused)
+        {
+            _pauseEvent.Set();
+            _isPaused = false;
+            _wasTogglePressed = false;
+            _wasMenuPressed = false;
+            _pauseEvent.Set();
+            System.Diagnostics.Debug.WriteLine("[GlobalHotkeyService] Listener resumed and state reset.");
+        }
+    }
+
     private async Task ListenerLoop(CancellationToken token)
     {
         System.Diagnostics.Debug.WriteLine("[GlobalHotkeyService] Listener loop running...");
@@ -120,6 +147,18 @@ public class GlobalHotkeyService : IDisposable
 
         while (!token.IsCancellationRequested)
         {
+            try
+            {
+                _pauseEvent.Wait(token);
+            }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("[GlobalHotkeyService] Operation canceled while waiting for pause event.");
+                break;
+            }
+
+            if (token.IsCancellationRequested) break;
+
             try
             {
                 // --- 1: Find and open device ---
@@ -423,8 +462,10 @@ public class GlobalHotkeyService : IDisposable
             if (disposing)
             {
                 StopListener();
+                _pauseEvent?.Set();
                 try { _listenerTask?.Wait(500); } catch { }
                 _cts?.Dispose();
+                _pauseEvent?.Dispose();
             }
             disposedValue = true;
         }
