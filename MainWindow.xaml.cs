@@ -1,4 +1,4 @@
-// MainWindow.xaml.cs (v0.2.2 - Fixes for Windows.Gaming.Input + View State)
+// MainWindow.xaml.cs
 using System;
 using JpnStudyTool.Services;
 using JpnStudyTool.ViewModels;
@@ -204,6 +204,23 @@ public sealed partial class MainWindow : Window
     {
         var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         dq?.TryEnqueue(() => { _windowActivationService?.ToggleMainWindowVisibility(); });
+    }
+
+    public void TriggerMenuToggle()
+    {
+        // Ensure running on UI thread
+        DispatcherQueue?.TryEnqueue(() =>
+        {
+            System.Diagnostics.Debug.WriteLine("[MainWindow] TriggerMenuToggle called.");
+            if (ViewModel.CurrentViewInternal != "menu")
+            {
+                ViewModel.EnterMenu();
+            }
+            else
+            {
+                ViewModel.ExitMenu();
+            }
+        });
     }
 
     private void reset_navigation_state() { _lastGamepadNavTime = DateTime.MinValue; }

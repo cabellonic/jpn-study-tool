@@ -15,6 +15,12 @@ public partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<SentenceHistoryItem> SentenceHistory { get; } = new();
 
     [ObservableProperty]
+    private string _currentViewInternal = "list";
+
+    [ObservableProperty]
+    private string _previousViewInternal = "list";
+
+    [ObservableProperty]
     private int selectedSentenceIndex = -1;
 
     [ObservableProperty]
@@ -71,6 +77,30 @@ public partial class MainWindowViewModel : ObservableObject
         if (SentenceHistory.Count == 0) return;
         int newIndex = SelectedSentenceIndex + delta;
         SelectedSentenceIndex = Math.Clamp(newIndex, 0, SentenceHistory.Count - 1);
+    }
+
+    public void EnterMenu()
+    {
+        if (CurrentViewInternal == "menu") return;
+
+        PreviousViewInternal = CurrentViewInternal;
+        CurrentViewInternal = "menu";
+        reset_navigation_state_internal();
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] Entering Menu. Previous view: {PreviousViewInternal}");
+    }
+
+    public void ExitMenu()
+    {
+        if (CurrentViewInternal != "menu") return;
+
+        CurrentViewInternal = PreviousViewInternal;
+        reset_navigation_state_internal();
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] Exiting Menu. Returning to: {CurrentViewInternal}");
+    }
+
+    private void reset_navigation_state_internal()
+    {
+        System.Diagnostics.Debug.WriteLine("[ViewModel] Navigation state reset requested (needs implementation).");
     }
 
     public void Cleanup()
