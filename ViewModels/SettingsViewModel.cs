@@ -1,5 +1,4 @@
 ﻿// ViewModels/SettingsViewModel.cs
-// ViewModels/SettingsViewModel.cs
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -18,10 +17,9 @@ namespace JpnStudyTool.ViewModels;
 
 public partial class SettingsViewModel : ObservableObject
 {
-    private readonly SettingsService _settingsService; // Instancia del servicio
-    private AppSettings _loadedSettings; // Para mantener la configuración cargada
+    private readonly SettingsService _settingsService;
+    private AppSettings _loadedSettings;
 
-    // --- Propiedades Observable ---
     [ObservableProperty]
     private bool _readClipboardOnLoad;
 
@@ -37,7 +35,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int? _currentSelectedPid = null;
     [ObservableProperty]
-    private string? _detectedGamepadName = "No supported gamepad detected."; // Para UI
+    private string? _detectedGamepadName = "No supported gamepad detected.";
 
     // --- Comandos ---
     public ICommand StartCaptureKeyboardCommand { get; }
@@ -69,7 +67,7 @@ public partial class SettingsViewModel : ObservableObject
 
         StartCaptureKeyboardCommand = new RelayCommand<BindingConfig>(StartKeyboardCapture, CanStartCapture);
         StartCaptureJoystickCommand = new RelayCommand<BindingConfig>(StartJoystickCapture, CanStartJoystickCapture);
-        CancelCaptureCommand = new RelayCommand(CancelCapture, CanCancelCapture);
+        CancelCaptureCommand = new RelayCommand(CancelCapture, () => CanCancelCapture);
         ResetKeyboardDefaultsCommand = new RelayCommand(ResetKeyboardDefaults);
         ResetJoystickDefaultsCommand = new RelayCommand(ResetJoystickDefaults, () => IsGamepadConnected);
         SaveAndCloseCommand = new RelayCommand(SaveAndClose); // Método modificado abajo
@@ -142,7 +140,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private bool CanStartCapture(BindingConfig? binding) => binding != null && !IsCapturingKeyboard && !IsCapturingJoystick;
     private bool CanStartJoystickCapture(BindingConfig? binding) => CanStartCapture(binding) && IsGamepadConnected;
-    public bool CanCancelCapture() => IsCapturingKeyboard || IsCapturingJoystick;
+    public bool CanCancelCapture => IsCapturingKeyboard || IsCapturingJoystick;
 
     private void StartKeyboardCapture(BindingConfig? binding)
     {
@@ -223,7 +221,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void CancelCapture()
     {
-        if (!CanCancelCapture()) return;
+        if (!CanCancelCapture) return;
         System.Diagnostics.Debug.WriteLine("[SettingsVM] Cancelling capture.");
         IsCapturingKeyboard = false;
         IsCapturingJoystick = false;

@@ -85,6 +85,10 @@ public class SettingsService
             SelectedGlobalGamepadPid = null,
             GlobalJoystickBindings = new Dictionary<string, string?>(),
             GlobalKeyboardBindings = new Dictionary<string, string?>()
+            {
+                { "GLOBAL_TOGGLE", "Ctrl+Alt+J" },
+                { "GLOBAL_MENU", "Ctrl+Alt+M" }
+            }
         };
         return defaultSettings;
     }
