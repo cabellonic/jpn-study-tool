@@ -16,9 +16,6 @@
         x:Name="SettingsRootGrid"
         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
         RequestedTheme="Light">
-        <Grid.Resources>
-            <converters:NegatedBooleanConverter x:Key="NegatedBooleanConverter" />
-        </Grid.Resources>
 
         <Grid Margin="15">
             <Grid.RowDefinitions>
@@ -161,8 +158,14 @@
                 HorizontalAlignment="Right"
                 Orientation="Horizontal"
                 Spacing="10">
-                <Button Command="{Binding ResetKeyboardDefaultsCommand}" Content="Reset Keyboard Defaults" />
-                <Button Command="{Binding ResetJoystickDefaultsCommand}" Content="Reset Joystick Defaults" />
+                <Button
+                    Command="{Binding ResetKeyboardDefaultsCommand}"
+                    Content="Reset Keyboard Defaults"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+                <Button
+                    Command="{Binding ResetJoystickDefaultsCommand}"
+                    Content="Reset Joystick Defaults"
+                    Style="{StaticResource SecondaryButtonStyle}" />
             </StackPanel>
 
             <StackPanel
@@ -172,7 +175,10 @@
                 Orientation="Horizontal"
                 Spacing="10">
                 <Button Command="{Binding SaveAndCloseCommand}" Content="Save and Close" />
-                <Button Command="{Binding CancelCommand}" Content="Cancel" />
+                <Button
+                    Command="{Binding CancelCommand}"
+                    Content="Cancel"
+                    Style="{StaticResource SecondaryButtonStyle}" />
             </StackPanel>
         </Grid>
     </Grid>
