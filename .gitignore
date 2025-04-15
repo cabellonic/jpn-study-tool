@@ -1,4 +1,5 @@
 # Visual Studio / .NET Core / WinUI 3
+.vscode
 
 ## Ignore Visual Studio temporary files, build results, and user-specific files
 *.suo
