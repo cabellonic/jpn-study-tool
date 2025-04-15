@@ -13,9 +13,15 @@ public class AppSettings
     public Dictionary<string, string?> GlobalJoystickBindings { get; set; }
     public Dictionary<string, string?> GlobalKeyboardBindings { get; set; }
 
+    public Dictionary<string, string?> LocalJoystickBindings { get; set; }
+    public Dictionary<string, string?> LocalKeyboardBindings { get; set; }
+
     public AppSettings()
     {
         GlobalJoystickBindings = new Dictionary<string, string?>();
         GlobalKeyboardBindings = new Dictionary<string, string?>();
+
+        LocalJoystickBindings = new Dictionary<string, string?>();
+        LocalKeyboardBindings = new Dictionary<string, string?>();
     }
 }

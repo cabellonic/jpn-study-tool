@@ -15,10 +15,7 @@ namespace JpnStudyTool;
 
 public sealed partial class SettingsWindow : Window
 {
-    public SettingsViewModel ViewModel
-    {
-        get;
-    }
+    public SettingsViewModel ViewModel { get; }
     private CancellationTokenSource? _captureCts;
 
     public SettingsWindow()
@@ -41,81 +38,105 @@ public sealed partial class SettingsWindow : Window
         App.PauseGlobalHotkeys();
     }
 
-    // Start/Stop Joystick polling when ViewModel capture state changes
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ViewModel.IsCapturingJoystick))
+        if (e.PropertyName == nameof(ViewModel.IsCapturingKeyboard) || e.PropertyName == nameof(ViewModel.IsCapturingJoystick))
         {
-            if (ViewModel.IsCapturingJoystick) StartJoystickPolling();
-            else StopJoystickPolling();
+            bool isCapturing = ViewModel.IsCapturingKeyboard || ViewModel.IsCapturingJoystick;
+            if (isCapturing)
+            {
+                SettingsRootGrid.Focus(FocusState.Programmatic);
+                System.Diagnostics.Debug.WriteLine("[SettingsWindow] Attempted to focus root grid for capture.");
+            }
+
+            if (e.PropertyName == nameof(ViewModel.IsCapturingJoystick))
+            {
+                if (ViewModel.IsCapturingJoystick) StartJoystickPolling();
+                else StopJoystickPolling();
+            }
         }
     }
 
-    // Handle keyboard input when capturing
     private void Capture_KeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (!ViewModel.IsCapturingKeyboard && !ViewModel.IsCapturingJoystick && e.Key == VirtualKey.Escape)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Escape pressed outside capture mode. Closing window.");
+            this.Close();
+            e.Handled = true;
+            return;
+        }
+
         if (ViewModel.IsCapturingKeyboard)
         {
-            e.Handled = true;
+            e.Handled = true; // Handle the event immediately
+            System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Capture_KeyDown: Key={e.Key}, Handled=True");
 
             VirtualKey key = e.Key;
-            string keyDisplay = key.ToString();
 
+            // Ignore modifier keys pressed alone
             if (key == VirtualKey.Control || key == VirtualKey.Shift || key == VirtualKey.Menu ||
-                key == VirtualKey.LeftWindows || key == VirtualKey.RightWindows)
+                key == VirtualKey.LeftWindows || key == VirtualKey.RightWindows ||
+                key == VirtualKey.LeftControl || key == VirtualKey.RightControl ||
+                key == VirtualKey.LeftShift || key == VirtualKey.RightShift ||
+                key == VirtualKey.LeftMenu || key == VirtualKey.RightMenu)
             {
-                ViewModel.CaptureStatusText = $"Press key for '{ViewModel.BindingToCapture?.ActionName}' (Modifiers detected)...";
-                return;
+                ViewModel.CaptureStatusText = $"Press the main key for '{ViewModel.BindingToCapture?.ActionName}' (Modifiers detected)...";
+                System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Capture_KeyDown: Modifier key only ({key}). Waiting for main key.");
+                return; // Wait for the actual key press
             }
 
+            // Handle Escape for cancellation
             if (key == VirtualKey.Escape)
             {
+                System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Capture_KeyDown: Escape pressed. Cancelling keyboard capture.");
                 ViewModel.CancelCaptureCommand.Execute(null);
                 return;
             }
 
-            var modifiers = VirtualKeyModifiers.None;
+            // Determine currently pressed modifier keys
+            VirtualKeyModifiers activeModifiers = VirtualKeyModifiers.None;
             try
             {
-                var ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
-                if (ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) modifiers |= VirtualKeyModifiers.Control;
-
-                var altState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu);
-                if (altState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) modifiers |= VirtualKeyModifiers.Menu;
-
-                var shiftState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift);
-                if (shiftState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) modifiers |= VirtualKeyModifiers.Shift;
-
-                var lWinState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.LeftWindows);
-                if (lWinState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) modifiers |= VirtualKeyModifiers.Windows;
-                var rWinState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.RightWindows);
-                if (rWinState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) modifiers |= VirtualKeyModifiers.Windows;
-
+                // Use static GetKeyStateForCurrentThread for each modifier
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                    activeModifiers |= VirtualKeyModifiers.Control;
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                    activeModifiers |= VirtualKeyModifiers.Menu;
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                    activeModifiers |= VirtualKeyModifiers.Shift;
+                if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.LeftWindows).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down) ||
+                    InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.RightWindows).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                    activeModifiers |= VirtualKeyModifiers.Windows;
             }
             catch (Exception keyStateEx)
             {
-                System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Error getting key state: {keyStateEx.Message}");
+                // Log error if getting key state fails
+                System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Error getting key state via InputKeyboardSource: {keyStateEx.Message}. Modifiers might be inaccurate.");
             }
 
+            // Build the display string (e.g., "Ctrl+Alt+J")
             List<string> parts = new List<string>();
-            if (modifiers.HasFlag(VirtualKeyModifiers.Control)) parts.Add("Ctrl");
-            if (modifiers.HasFlag(VirtualKeyModifiers.Menu)) parts.Add("Alt");
-            if (modifiers.HasFlag(VirtualKeyModifiers.Shift)) parts.Add("Shift");
-            if (modifiers.HasFlag(VirtualKeyModifiers.Windows)) parts.Add("Win");
-            parts.Add(keyDisplay);
+            if (activeModifiers.HasFlag(VirtualKeyModifiers.Control)) parts.Add("Ctrl");
+            if (activeModifiers.HasFlag(VirtualKeyModifiers.Menu)) parts.Add("Alt");
+            if (activeModifiers.HasFlag(VirtualKeyModifiers.Shift)) parts.Add("Shift");
+            if (activeModifiers.HasFlag(VirtualKeyModifiers.Windows)) parts.Add("Win");
+            parts.Add(key.ToString()); // Add the main key name
 
             string fullBindingString = string.Join("+", parts);
 
-            ViewModel.ApplyKeyboardCapture(fullBindingString, e.Key);
+            // Apply the captured binding to the ViewModel
+            System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Applying captured keyboard binding: {fullBindingString}");
+            ViewModel.ApplyKeyboardCapture(fullBindingString, key); // Pass display string and raw key data
         }
         else if (ViewModel.IsCapturingJoystick && e.Key == VirtualKey.Escape)
         {
             e.Handled = true;
+            System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Capture_KeyDown: Escape pressed during Joy capture, Handled=True");
             ViewModel.CancelCaptureCommand.Execute(null);
         }
     }
 
-    // --- Joystick Polling for Capture ---
     private void StartJoystickPolling()
     {
         StopJoystickPolling();
@@ -175,11 +196,10 @@ public sealed partial class SettingsWindow : Window
             _captureCts?.Cancel();
             _captureCts?.Dispose();
         }
-        catch (ObjectDisposedException) { /* Ignore if already disposed */ }
+        catch (ObjectDisposedException) { /* Ignore */ }
         _captureCts = null;
     }
 
-    // Helper to get a single pressed button flag
     private GamepadButtons GetFirstPressedButton(GamepadButtons buttons)
     {
         foreach (GamepadButtons flag in (GamepadButtons[])Enum.GetValues(typeof(GamepadButtons)))
@@ -192,7 +212,6 @@ public sealed partial class SettingsWindow : Window
         return GamepadButtons.None;
     }
 
-    // Handler to close the window when requested by ViewModel
     private void ViewModel_RequestClose(object? sender, EventArgs e)
     {
         this.Close();
@@ -216,7 +235,9 @@ public sealed partial class SettingsWindow : Window
         StopJoystickPolling();
         ViewModel.CleanupOnClose();
 
+        App.MainWin?.PauseLocalPolling();
         App.ReloadAndRestartGlobalServices(default);
+        App.MainWin?.ResumeLocalPolling();
 
         System.Diagnostics.Debug.WriteLine("[SettingsWindow] Closed and global services reloaded.");
     }

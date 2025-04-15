@@ -35,25 +35,35 @@ namespace JpnStudyTool
             _mainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
             _settingsService = new SettingsService();
 
-            MainWin = new MainWindow();
+            var mainWindowInstance = new MainWindow();
 
+            HWND hwnd = default;
             try
             {
-                _mainWndHwnd = (HWND)WindowNative.GetWindowHandle(MainWin);
-                if (_mainWndHwnd == HWND.Null) throw new Exception("GetWindowHandle returned NULL");
+                hwnd = (HWND)WindowNative.GetWindowHandle(mainWindowInstance);
+                if (hwnd == HWND.Null) throw new Exception("GetWindowHandle returned NULL");
+                _mainWndHwnd = hwnd;
                 System.Diagnostics.Debug.WriteLine($"[App] MainWindow HWND acquired and stored: {_mainWndHwnd}.");
 
                 SetupWindowSubclassing(_mainWndHwnd);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[App] CRITICAL ERROR getting HWND or subclassing. Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[App] CRITICAL ERROR getting HWND or subclassing. Error: {ex.Message}. Global keyboard hotkeys may fail.");
                 _mainWndHwnd = default;
             }
 
-            ReloadAndRestartGlobalServices(_mainWndHwnd);
+            AppSettings currentSettings = _settingsService.LoadSettings();
 
+            System.Diagnostics.Debug.WriteLine("[App] Passing initial settings to MainWindow instance...");
+            mainWindowInstance.UpdateLocalBindings(currentSettings);
+
+            ReloadAndRestartGlobalServices(_mainWndHwnd, currentSettings);
+
+            MainWin = mainWindowInstance;
             MainWin.Activate();
+
+            System.Diagnostics.Debug.WriteLine("[App] OnLaunched sequence complete.");
         }
 
         private static void SetupWindowSubclassing(HWND hwnd)
@@ -135,13 +145,23 @@ namespace JpnStudyTool
             }
         }
 
-        internal static void ReloadAndRestartGlobalServices(HWND? hwndCheck = null)
+        internal static void ReloadAndRestartGlobalServices(HWND? hwndCheck = null, AppSettings? settings = null)
         {
             System.Diagnostics.Debug.WriteLine("[App] Reloading settings and restarting global services...");
             HWND currentHwnd = _mainWndHwnd;
 
-            if (_settingsService == null) { _settingsService = new SettingsService(); }
-            AppSettings currentSettings = _settingsService.LoadSettings();
+            AppSettings currentSettings;
+            if (settings != null)
+            {
+                currentSettings = settings;
+                System.Diagnostics.Debug.WriteLine("[App] Using provided settings for reload.");
+            }
+            else
+            {
+                if (_settingsService == null) { _settingsService = new SettingsService(); }
+                currentSettings = _settingsService.LoadSettings();
+                System.Diagnostics.Debug.WriteLine("[App] Loaded settings internally for reload.");
+            }
 
             System.Diagnostics.Debug.WriteLine("[App] Disposing existing services...");
             _keyboardHotkeyService?.Dispose();
@@ -193,6 +213,19 @@ namespace JpnStudyTool
                 System.Diagnostics.Debug.WriteLine("[App] KeyboardHotkeyService not started due to missing HWND.");
                 _keyboardHotkeyService?.Dispose();
                 _keyboardHotkeyService = null;
+            }
+
+            if (settings == null && MainWin != null)
+            {
+                System.Diagnostics.Debug.WriteLine("[App] Notifying MainWindow to update local bindings after internal reload...");
+                MainWin.DispatcherQueue?.TryEnqueue(() =>
+                {
+                    MainWin.UpdateLocalBindings(currentSettings);
+                });
+            }
+            else if (settings != null)
+            {
+                System.Diagnostics.Debug.WriteLine("[App] Skipping MainWindow notification (initial load or settings provided).");
             }
 
             System.Diagnostics.Debug.WriteLine("[App] Finished reloading global services.");

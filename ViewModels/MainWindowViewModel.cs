@@ -3,7 +3,6 @@ using System;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using JpnStudyTool.Models;
 using JpnStudyTool.Services;
 using Microsoft.UI.Dispatching;
@@ -37,7 +36,6 @@ public partial class MainWindowViewModel : ObservableObject
         _clipboardService = new ClipboardService();
         _clipboardService.JapaneseTextCopied += OnJapaneseTextCopied;
         _clipboardService.StartMonitoring();
-        OpenSettingsCommand = new RelayCommand(OpenSettingsWindow);
     }
 
     partial void OnSelectedSentenceIndexChanged(int value)
@@ -52,13 +50,6 @@ public partial class MainWindowViewModel : ObservableObject
             SelectedSentenceItem = null;
             System.Diagnostics.Debug.WriteLine($"[ViewModel] Index changed to: {value} (No selection)");
         }
-    }
-
-
-    private void OpenSettingsWindow()
-    {
-        try { var settingsWindow = new SettingsWindow(); settingsWindow.Activate(); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ViewModel] Error activating settings window: {ex.Message}"); }
     }
 
     private void OnJapaneseTextCopied(object? sender, string text)
