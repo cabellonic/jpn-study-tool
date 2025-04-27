@@ -7,46 +7,34 @@
     xmlns:local="using:JpnStudyTool"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:JpnStudyTool.Models"
-    xmlns:viewmodels="using:JpnStudyTool.ViewModels"
+    x:Name="RootWindow"
     mc:Ignorable="d">
-    <!--  Theme/Background set on root Grid  -->
 
-    <!--  Root Grid fills the entire window, forcing the background color  -->
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" RequestedTheme="Light">
 
-        <!--  Inner Grid provides the margin for the actual content  -->
-        <Grid Margin="10">
+        <Grid
+            x:Name="ListViewContentGrid"
+            Margin="10"
+            Visibility="Visible">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <!--  Title Row  -->
                 <RowDefinition Height="*" />
-                <!--  ListView Row  -->
             </Grid.RowDefinitions>
-
-            <!--  Row 0: Title and Settings Button  -->
             <Grid Grid.Row="0" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <!--  Title takes available space  -->
                     <ColumnDefinition Width="Auto" />
-                    <!--  Button shrinks to content  -->
                 </Grid.ColumnDefinitions>
-
                 <TextBlock
                     Grid.Column="0"
                     VerticalAlignment="Center"
                     FontSize="20"
                     Text="Sentence History" />
-
                 <Button
                     Grid.Column="1"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
                     Click="SettingsButton_Click"
                     Content="Settings" />
             </Grid>
-
-            <!--  Row 1: ListView  -->
             <ListView
                 x:Name="HistoryListView"
                 Grid.Row="1"
@@ -54,8 +42,8 @@
                 ItemsSource="{Binding SentenceHistory}"
                 SelectedIndex="{Binding SelectedSentenceIndex, Mode=TwoWay}"
                 SelectionChanged="HistoryListView_SelectionChanged"
-                SelectionMode="Single">
-
+                SelectionMode="Single"
+                TabIndex="0">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:SentenceHistoryItem">
                         <TextBlock
@@ -65,9 +53,103 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-
         </Grid>
-        <!--  End Inner Grid (with Margin)  -->
+
+        <Grid
+            x:Name="DetailViewContentGrid"
+            Margin="10"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" MaxHeight="600" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <ScrollViewer
+                x:Name="SentenceScrollViewer"
+                Grid.Row="0"
+                Margin="0,0,0,10"
+                Padding="5"
+                BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,0,0,1"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
+                <RichTextBlock
+                    x:Name="SentenceRichTextBlock"
+                    FontSize="{Binding SentenceFontSize, ElementName=RootWindow, Mode=OneWay}"
+                    Foreground="Black"
+                    IsTextSelectionEnabled="True"
+                    LineHeight="{Binding SentenceLineHeight, ElementName=RootWindow, Mode=OneWay}"
+                    SelectionHighlightColor="LightSkyBlue"
+                    TabIndex="1"
+                    TextWrapping="Wrap" />
+            </ScrollViewer>
+
+            <ScrollViewer
+                x:Name="DefinitionScrollViewer"
+                Grid.Row="1"
+                Padding="5"
+                Background="Transparent"
+                TabIndex="2"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
+                <StackPanel MinHeight="150" Orientation="Vertical">
+                    <TextBlock
+                        Margin="0,0,0,5"
+                        Style="{ThemeResource SubtitleTextBlockStyle}"
+                        Text="Token Info:"
+                        Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <Grid ColumnSpacing="10" Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            FontWeight="SemiBold"
+                            Text="Reading:" />
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Text="{Binding SelectedToken.Reading, FallbackValue='-'}" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="0"
+                            FontWeight="SemiBold"
+                            Text="Base Form:" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Text="{Binding SelectedToken.BaseForm, FallbackValue='-'}" />
+                        <TextBlock
+                            Grid.Row="2"
+                            Grid.Column="0"
+                            FontWeight="SemiBold"
+                            Text="PoS:" />
+                        <TextBlock
+                            Grid.Row="2"
+                            Grid.Column="1"
+                            Text="{Binding SelectedToken.PartOfSpeech, FallbackValue='-'}" />
+                    </Grid>
+                    <TextBlock
+                        Margin="0,15,0,5"
+                        Style="{ThemeResource SubtitleTextBlockStyle}"
+                        Text="Definition:" />
+                    <TextBlock
+                        x:Name="DefinitionTextBlock"
+                        FontSize="{Binding DefinitionFontSize, ElementName=RootWindow, Mode=OneWay}"
+                        Foreground="{ThemeResource SystemControlPageTextBaseHighBrush}"
+                        Text="Lorem ipsum dolor sit amet..."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </Grid>
-    <!--  End Root Grid (fills window)  -->
 </Window>

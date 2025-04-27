@@ -12,6 +12,66 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="MeCab\dic\ipadic\aclocal.m4" />
+    <None Remove="MeCab\dic\ipadic\Adj.csv" />
+    <None Remove="MeCab\dic\ipadic\Adnominal.csv" />
+    <None Remove="MeCab\dic\ipadic\Adverb.csv" />
+    <None Remove="MeCab\dic\ipadic\AUTHORS" />
+    <None Remove="MeCab\dic\ipadic\Auxil.csv" />
+    <None Remove="MeCab\dic\ipadic\ChangeLog" />
+    <None Remove="MeCab\dic\ipadic\char.bin" />
+    <None Remove="MeCab\dic\ipadic\char.def" />
+    <None Remove="MeCab\dic\ipadic\config.guess" />
+    <None Remove="MeCab\dic\ipadic\config.sub" />
+    <None Remove="MeCab\dic\ipadic\configure" />
+    <None Remove="MeCab\dic\ipadic\configure.in" />
+    <None Remove="MeCab\dic\ipadic\Conjunction.csv" />
+    <None Remove="MeCab\dic\ipadic\COPYING" />
+    <None Remove="MeCab\dic\ipadic\dicrc" />
+    <None Remove="MeCab\dic\ipadic\feature.def" />
+    <None Remove="MeCab\dic\ipadic\Filler.csv" />
+    <None Remove="MeCab\dic\ipadic\INSTALL" />
+    <None Remove="MeCab\dic\ipadic\install-sh" />
+    <None Remove="MeCab\dic\ipadic\Interjection.csv" />
+    <None Remove="MeCab\dic\ipadic\left-id.def" />
+    <None Remove="MeCab\dic\ipadic\Makefile.am" />
+    <None Remove="MeCab\dic\ipadic\Makefile.in" />
+    <None Remove="MeCab\dic\ipadic\matrix.bin" />
+    <None Remove="MeCab\dic\ipadic\matrix.def" />
+    <None Remove="MeCab\dic\ipadic\missing" />
+    <None Remove="MeCab\dic\ipadic\mkinstalldirs" />
+    <None Remove="MeCab\dic\ipadic\NEWS" />
+    <None Remove="MeCab\dic\ipadic\Noun.adjv.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.adverbal.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.demonst.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.nai.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.name.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.number.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.org.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.others.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.place.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.proper.csv" />
+    <None Remove="MeCab\dic\ipadic\Noun.verbal.csv" />
+    <None Remove="MeCab\dic\ipadic\Others.csv" />
+    <None Remove="MeCab\dic\ipadic\pos-id.def" />
+    <None Remove="MeCab\dic\ipadic\Postp-col.csv" />
+    <None Remove="MeCab\dic\ipadic\Postp.csv" />
+    <None Remove="MeCab\dic\ipadic\Prefix.csv" />
+    <None Remove="MeCab\dic\ipadic\README" />
+    <None Remove="MeCab\dic\ipadic\RESULT" />
+    <None Remove="MeCab\dic\ipadic\rewrite.def" />
+    <None Remove="MeCab\dic\ipadic\right-id.def" />
+    <None Remove="MeCab\dic\ipadic\Suffix.csv" />
+    <None Remove="MeCab\dic\ipadic\Symbol.csv" />
+    <None Remove="MeCab\dic\ipadic\sys.dic" />
+    <None Remove="MeCab\dic\ipadic\unk.def" />
+    <None Remove="MeCab\dic\ipadic\unk.dic" />
+    <None Remove="MeCab\dic\ipadic\upload.pl" />
+    <None Remove="MeCab\dic\ipadic\Verb.csv" />
+    <None Remove="MeCab\native\x64\libmecab.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -21,6 +81,180 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="MeCab\dic\ipadic\aclocal.m4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Adj.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Adnominal.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Adverb.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\AUTHORS">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Auxil.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\ChangeLog">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\char.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\char.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\config.guess">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\config.sub">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\configure">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\configure.in">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Conjunction.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\COPYING">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\dicrc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\feature.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Filler.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\INSTALL">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\install-sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Interjection.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\left-id.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Makefile.am">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Makefile.in">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\matrix.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\matrix.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\missing">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\mkinstalldirs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\NEWS">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.adjv.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.adverbal.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.demonst.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.nai.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.name.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.number.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.org.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.others.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.place.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.proper.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Noun.verbal.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Others.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\pos-id.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Postp-col.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Postp.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Prefix.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\README">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\RESULT">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\rewrite.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\right-id.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Suffix.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Symbol.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\sys.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\unk.def">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\unk.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\upload.pl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\dic\ipadic\Verb.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MeCab\native\x64\libmecab.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +278,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250310001" />
+    <PackageReference Include="NMeCabNetStandard" Version="0.7.3" />
     <PackageReference Include="SharpDX.XInput" Version="4.2.0" />
   </ItemGroup>
   <ItemGroup>

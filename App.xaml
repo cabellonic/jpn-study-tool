@@ -12,6 +12,9 @@
             </ResourceDictionary.MergedDictionaries>
             <!--  Global resources  -->
             <converters:NegatedBooleanConverter x:Key="NegatedBooleanConverter" />
+            <converters:StringEqualsTriggerConverter x:Key="StringEqualsTriggerConverter" />
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
 
             <!--  Modernized global button style  -->
             <Style TargetType="Button">
