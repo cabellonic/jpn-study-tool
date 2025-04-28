@@ -15,11 +15,14 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly ClipboardService _clipboardService;
     private readonly JapaneseTokenizerService _tokenizerService;
+    private readonly DictionaryService _dictionaryService;
     private readonly DispatcherQueue _dispatcherQueue;
 
     public ObservableCollection<SentenceHistoryItem> SentenceHistory { get; } = new();
+
     [ObservableProperty]
     private int selectedSentenceIndex = -1;
+
     [ObservableProperty]
     private SentenceHistoryItem? selectedSentenceItem;
 
@@ -29,23 +32,34 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private int _selectedTokenIndex = -1;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedTokenDefinitionEntry))]
     private TokenInfo? _selectedToken;
 
     [ObservableProperty]
     private string _currentViewInternal = "list";
+
     [ObservableProperty]
     private string _previousViewInternal = "list";
 
     [ObservableProperty]
     private string _detailFocusTarget = "Sentence";
 
+    [ObservableProperty]
+    private ObservableCollection<DictionaryEntry> _foundDefinitions = new();
+
+    public DictionaryEntry? SelectedTokenDefinitionEntry => FoundDefinitions.FirstOrDefault();
+
+    [ObservableProperty]
+    private bool _isSearchingDefinition = false;
 
     public MainWindowViewModel()
     {
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         _clipboardService = new ClipboardService();
         _tokenizerService = new JapaneseTokenizerService();
+        _dictionaryService = new DictionaryService();
         _clipboardService.JapaneseTextCopied += OnJapaneseTextCopied;
         _clipboardService.StartMonitoring();
     }
@@ -57,13 +71,53 @@ public partial class MainWindowViewModel : ObservableObject
         System.Diagnostics.Debug.WriteLine($"[ViewModel] List Index changed to: {value}");
     }
 
-    partial void OnSelectedTokenIndexChanged(int value)
-    {
-        TokenInfo? foundToken = FindSelectableTokenByIndex(value);
-        SelectedToken = foundToken;
 
-        if (SelectedToken != null) { System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token Index (selectable): {value}, Token: {SelectedToken.Surface}"); }
-        else { System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token Index (selectable): {value} resulted in null token."); }
+    async partial void OnSelectedTokenChanged(TokenInfo? value)
+    {
+        _dispatcherQueue.TryEnqueue(() => FoundDefinitions.Clear());
+        OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+
+        if (value != null && CurrentViewInternal == "detail")
+        {
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token Changed: {value.Surface}. Base='{value.BaseForm}', Reading='{value.Reading}'. Requesting definition search...");
+            IsSearchingDefinition = true;
+            try
+            {
+                List<DictionaryEntry> definitions = await _dictionaryService.FindEntriesAsync(value.BaseForm, value.Reading);
+
+                _dispatcherQueue.TryEnqueue(() =>
+                {
+                    FoundDefinitions.Clear();
+                    if (definitions != null && definitions.Any())
+                    {
+                        foreach (var entry in definitions)
+                        {
+                            FoundDefinitions.Add(entry);
+                        }
+                        System.Diagnostics.Debug.WriteLine($"[ViewModel] Found {FoundDefinitions.Count} definitions for '{value.Surface}'. Displaying the first.");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ViewModel] No definitions found for '{value.Surface}'.");
+                    }
+                    OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Error fetching definitions: {ex.Message}");
+                _dispatcherQueue.TryEnqueue(() => FoundDefinitions.Clear());
+                OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+            }
+            finally
+            {
+                IsSearchingDefinition = false;
+            }
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token is null or not in detail view. Definitions cleared.");
+        }
     }
 
     private TokenInfo? FindSelectableTokenByIndex(int selectableIndex)
@@ -95,6 +149,9 @@ public partial class MainWindowViewModel : ObservableObject
         _dispatcherQueue.TryEnqueue(() =>
         {
             Tokens.Clear();
+            FoundDefinitions.Clear();
+            OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+
             int firstValidTokenIndex = -1;
             int currentSelectableIndex = 0;
             for (int i = 0; i < tokenList.Count; i++)
@@ -128,11 +185,28 @@ public partial class MainWindowViewModel : ObservableObject
 
         _dispatcherQueue.TryEnqueue(() =>
         {
-            DetailedSentence = null; Tokens.Clear(); SelectedTokenIndex = -1;
-            CurrentViewInternal = "list"; DetailFocusTarget = "Sentence";
+            DetailedSentence = null;
+            Tokens.Clear();
+            FoundDefinitions.Clear();
+            OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
 
-            if (previousListIndex >= 0 && previousListIndex < SentenceHistory.Count) { SelectedSentenceIndex = previousListIndex; SelectedSentenceItem = SentenceHistory[previousListIndex]; System.Diagnostics.Debug.WriteLine($"[ViewModel] Re-selected sentence at index {previousListIndex}."); }
-            else { SelectedSentenceIndex = -1; SelectedSentenceItem = null; }
+            SelectedTokenIndex = -1;
+            SelectedToken = null;
+
+            CurrentViewInternal = "list";
+            DetailFocusTarget = "Sentence";
+
+            if (previousListIndex >= 0 && previousListIndex < SentenceHistory.Count)
+            {
+                SelectedSentenceIndex = previousListIndex;
+                SelectedSentenceItem = SentenceHistory[previousListIndex];
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Re-selected sentence at index {previousListIndex}.");
+            }
+            else
+            {
+                SelectedSentenceIndex = -1;
+                SelectedSentenceItem = null;
+            }
             System.Diagnostics.Debug.WriteLine($"[ViewModel] Returned to view: {CurrentViewInternal}");
         });
     }
@@ -158,7 +232,11 @@ public partial class MainWindowViewModel : ObservableObject
         int numSelectable = Tokens.Count(t => t.IsSelectable);
         if (numSelectable == 0) return;
         int nextSelectableIndex = Math.Clamp(currentSelectableIndex + delta, 0, numSelectable - 1);
-        if (nextSelectableIndex != currentSelectableIndex) { SelectedTokenIndex = nextSelectableIndex; }
+        if (nextSelectableIndex != currentSelectableIndex)
+        {
+            SelectedTokenIndex = nextSelectableIndex;
+            SelectedToken = FindSelectableTokenByIndex(nextSelectableIndex);
+        }
     }
 
     public void MoveKanjiTokenSelection(int delta)
@@ -180,6 +258,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (nextToken != null && nextToken.HasKanji)
             {
                 SelectedTokenIndex = searchIndex;
+                SelectedToken = nextToken;
                 break;
             }
         }

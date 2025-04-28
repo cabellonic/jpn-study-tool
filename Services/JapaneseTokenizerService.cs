@@ -74,18 +74,33 @@ public class JapaneseTokenizerService
             {
                 string[] features = node.Feature?.Split(',') ?? Array.Empty<string>();
                 string surface = node.Surface ?? string.Empty;
-                string reading = features.Length > 7 ? features[7] : string.Empty;
+                string partOfSpeech = features.Length > 0 ? features[0] : "-";
+                string posSubcat1 = features.Length > 1 ? features[1] : "-";
+                string posSubcat2 = features.Length > 2 ? features[2] : "-";
+                string conjugationForm = features.Length > 4 ? features[4] : "-";
+                string conjugationType = features.Length > 5 ? features[5] : "-";
                 string baseForm = features.Length > 6 ? features[6] : surface;
+                string reading = features.Length > 7 ? features[7] : surface;
+
                 if (reading == "*" || string.IsNullOrEmpty(reading)) reading = surface;
                 if (baseForm == "*" || string.IsNullOrEmpty(baseForm)) baseForm = surface;
+
+                if (posSubcat1 == "*") posSubcat1 = "-";
+                if (posSubcat2 == "*") posSubcat2 = "-";
+                if (conjugationForm == "*") conjugationForm = "-";
+                if (conjugationType == "*") conjugationType = "-";
 
                 tokens.Add(new TokenInfo
                 {
                     Surface = surface,
-                    PartOfSpeech = features.Length > 0 ? features[0] : string.Empty,
+                    PartOfSpeech = partOfSpeech,
+                    POSSubcategory1 = posSubcat1,
+                    POSSubcategory2 = posSubcat2,
+                    ConjugationType = conjugationType,
+                    ConjugationForm = conjugationForm,
                     BaseForm = baseForm,
                     Reading = reading,
-                    HasKanji = KanjiRegex.IsMatch(surface)
+                    HasKanji = KanjiRegex.IsMatch(surface),
                 });
                 node = node.Next;
             }
@@ -95,6 +110,7 @@ public class JapaneseTokenizerService
             System.Diagnostics.Debug.WriteLine($"[Tokenizer] Error during MeCab parsing: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
         }
+        System.Diagnostics.Debug.WriteLine($"[Tokenizer] Finished tokenization. Found {tokens.Count} tokens.");
         return tokens;
     }
 }
