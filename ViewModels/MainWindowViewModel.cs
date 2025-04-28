@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,6 +18,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly JapaneseTokenizerService _tokenizerService;
     private readonly DictionaryService _dictionaryService;
     private readonly DispatcherQueue _dispatcherQueue;
+
+    public event Func<string?, Task>? RequestLoadDefinitionHtml;
 
     public ObservableCollection<SentenceHistoryItem> SentenceHistory { get; } = new();
 
@@ -56,7 +59,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
-        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        _dispatcherQueue = DispatcherQueue.GetForCurrentThread()
+            ?? throw new InvalidOperationException("Cannot get DispatcherQueue for current thread."); ;
         _clipboardService = new ClipboardService();
         _tokenizerService = new JapaneseTokenizerService();
         _dictionaryService = new DictionaryService();
@@ -89,49 +93,79 @@ public partial class MainWindowViewModel : ObservableObject
 
     private async Task LoadDefinitionForTokenAsync(TokenInfo? token)
     {
-        _dispatcherQueue.TryEnqueue(() => FoundDefinitions.Clear());
-        OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+        string? combinedHtmlToLoad = null;
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            FoundDefinitions.Clear();
+            OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+            IsSearchingDefinition = true;
+        });
 
         if (token != null && CurrentViewInternal == "detail")
         {
             System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition Request: {token.Surface}. Base='{token.BaseForm}', Reading='{token.Reading}'.");
-            IsSearchingDefinition = true;
             List<DictionaryEntry> definitions = new List<DictionaryEntry>();
             try
             {
                 definitions = await _dictionaryService.FindEntriesAsync(token.BaseForm, token.Reading);
+
+                StringBuilder combinedHtmlBuilder = new StringBuilder();
+                List<DictionaryEntry> entriesToAdd = new List<DictionaryEntry>();
+
+                if (definitions != null && definitions.Any())
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ViewModel] Found {definitions.Count} definitions for '{token.Surface}'. Combining HTML...");
+                    for (int i = 0; i < definitions.Count; i++)
+                    {
+                        var entry = definitions[i];
+                        entriesToAdd.Add(entry);
+
+                        if (i > 0) { combinedHtmlBuilder.Append("<hr style='border: none; border-top: 1px dashed #ccc; margin: 1em 0;' />"); }
+
+                        if (!string.IsNullOrWhiteSpace(entry.DefinitionHtml))
+                        {
+                            combinedHtmlBuilder.Append(entry.DefinitionHtml);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(entry.DefinitionText))
+                        {
+                            combinedHtmlBuilder.Append($"<p>{System.Security.SecurityElement.Escape(entry.DefinitionText)}</p>");
+                        }
+                    }
+                    combinedHtmlToLoad = combinedHtmlBuilder.ToString();
+                }
+                else { System.Diagnostics.Debug.WriteLine($"[ViewModel] No definitions found for '{token.Surface}'."); }
+
+                _dispatcherQueue.TryEnqueue(() =>
+                {
+                    FoundDefinitions.Clear();
+                    foreach (var entry in entriesToAdd) { FoundDefinitions.Add(entry); }
+                    OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+                });
+
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] Error fetching definitions: {ex.Message}");
-            }
-            finally
-            {
                 _dispatcherQueue.TryEnqueue(() =>
                 {
                     FoundDefinitions.Clear();
-                    if (definitions != null && definitions.Any())
-                    {
-                        foreach (var entry in definitions)
-                        {
-                            FoundDefinitions.Add(entry);
-                        }
-                        System.Diagnostics.Debug.WriteLine($"[ViewModel] Found {FoundDefinitions.Count} definitions for '{token.Surface}'. Displaying the first.");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[ViewModel] No definitions found for '{token.Surface}'.");
-                    }
                     OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
-                    IsSearchingDefinition = false;
                 });
+                combinedHtmlToLoad = null;
             }
         }
-        else
+        else { System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition skipped."); }
+
+        if (RequestLoadDefinitionHtml != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition skipped (token null or not in detail view).");
-            _dispatcherQueue.TryEnqueue(() => IsSearchingDefinition = false);
+            await DispatcherQueue_EnqueueAsync(async () =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Requesting view to load COMBINED HTML (Is Null or Empty? {string.IsNullOrEmpty(combinedHtmlToLoad)}).");
+                await RequestLoadDefinitionHtml.Invoke(combinedHtmlToLoad);
+            });
         }
+
+        _dispatcherQueue.TryEnqueue(() => IsSearchingDefinition = false);
     }
 
 
@@ -144,10 +178,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (token.IsSelectable)
             {
                 currentSelectableCount++;
-                if (currentSelectableCount == selectableIndex)
-                {
-                    return token;
-                }
+                if (currentSelectableCount == selectableIndex) { return token; }
             }
         }
         return null;
@@ -156,8 +187,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void EnterDetailView()
     {
-        if (CurrentViewInternal != "list" || SelectedSentenceItem == null) return;
+        if (CurrentViewInternal == "detail" || SelectedSentenceItem == null) return;
         System.Diagnostics.Debug.WriteLine($"[ViewModel] Entering Detail View for: {SelectedSentenceItem.Sentence}");
+
         DetailedSentence = SelectedSentenceItem;
         List<TokenInfo> tokenList = _tokenizerService.Tokenize(DetailedSentence.Sentence);
 
@@ -174,14 +206,8 @@ public partial class MainWindowViewModel : ObservableObject
                 var token = tokenList[i];
                 token.IsSelectable = IsTokenSelectable(token);
                 Tokens.Add(token);
-                if (firstValidTokenIndex == -1 && token.IsSelectable)
-                {
-                    firstValidTokenIndex = currentSelectableIndex;
-                }
-                if (token.IsSelectable)
-                {
-                    currentSelectableIndex++;
-                }
+                if (firstValidTokenIndex == -1 && token.IsSelectable) { firstValidTokenIndex = currentSelectableIndex; }
+                if (token.IsSelectable) { currentSelectableIndex++; }
             }
             System.Diagnostics.Debug.WriteLine($"[ViewModel] Tokenized into {Tokens.Count} tokens. Selectable count: {currentSelectableIndex}");
 
@@ -189,51 +215,44 @@ public partial class MainWindowViewModel : ObservableObject
             CurrentViewInternal = "detail";
             DetailFocusTarget = "Sentence";
 
-            TokenInfo? initialToken = FindSelectableTokenByIndex(firstValidTokenIndex);
-            _selectedTokenIndex = firstValidTokenIndex;
-            OnPropertyChanged(nameof(SelectedTokenIndex));
-            _selectedToken = initialToken;
-            OnPropertyChanged(nameof(SelectedToken));
-
-            _ = LoadDefinitionForTokenAsync(initialToken);
+            SelectedTokenIndex = firstValidTokenIndex;
         });
     }
 
-    public void ExitDetailView()
+
+    public async void ExitDetailView()
     {
-        if (CurrentViewInternal != "detail") return;
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] Exiting Detail View.");
-        int previousListIndex = SelectedSentenceIndex;
-
-        _dispatcherQueue.TryEnqueue(() =>
+        if (CurrentViewInternal != "list")
         {
-            DetailedSentence = null;
-            Tokens.Clear();
-            FoundDefinitions.Clear();
-            OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] Exiting Detail View.");
+            int previousListIndex = SelectedSentenceIndex;
 
-            _selectedToken = null;
-            OnPropertyChanged(nameof(SelectedToken));
-            _selectedTokenIndex = -1;
-            OnPropertyChanged(nameof(SelectedTokenIndex));
-
-
-            CurrentViewInternal = "list";
-            DetailFocusTarget = "Sentence";
-
-            if (previousListIndex >= 0 && previousListIndex < SentenceHistory.Count)
+            _dispatcherQueue.TryEnqueue(() =>
             {
-                SelectedSentenceIndex = previousListIndex;
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] Re-selected sentence at index {previousListIndex}.");
-            }
-            else
+                DetailedSentence = null;
+                Tokens.Clear();
+                FoundDefinitions.Clear();
+                OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+                _selectedToken = null;
+                OnPropertyChanged(nameof(SelectedToken));
+                _selectedTokenIndex = -1;
+                OnPropertyChanged(nameof(SelectedTokenIndex));
+
+                CurrentViewInternal = "list";
+                DetailFocusTarget = "Sentence";
+
+                if (previousListIndex >= 0 && previousListIndex < SentenceHistory.Count) { SelectedSentenceIndex = previousListIndex; }
+                else { SelectedSentenceIndex = -1; }
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Returned to view: {CurrentViewInternal}");
+            });
+
+            if (RequestLoadDefinitionHtml != null)
             {
-                SelectedSentenceIndex = -1;
-                SelectedSentenceItem = null;
+                await DispatcherQueue_EnqueueAsync(async () => await RequestLoadDefinitionHtml.Invoke(null));
             }
-            System.Diagnostics.Debug.WriteLine($"[ViewModel] Returned to view: {CurrentViewInternal}");
-        });
+        }
     }
+
 
     public void FocusDefinitionArea()
     {
@@ -242,12 +261,14 @@ public partial class MainWindowViewModel : ObservableObject
         System.Diagnostics.Debug.WriteLine("[ViewModel] Detail focus changed to: Definition");
     }
 
+
     public void FocusSentenceArea()
     {
         if (CurrentViewInternal != "detail" || DetailFocusTarget == "Sentence") return;
         DetailFocusTarget = "Sentence";
         System.Diagnostics.Debug.WriteLine("[ViewModel] Detail focus changed to: Sentence");
     }
+
 
     public void MoveTokenSelection(int delta)
     {
@@ -256,35 +277,28 @@ public partial class MainWindowViewModel : ObservableObject
         int numSelectable = Tokens.Count(t => t.IsSelectable);
         if (numSelectable == 0) return;
         int nextSelectableIndex = Math.Clamp(currentSelectableIndex + delta, 0, numSelectable - 1);
-        if (nextSelectableIndex != currentSelectableIndex)
-        {
-            SelectedTokenIndex = nextSelectableIndex;
-        }
+        if (nextSelectableIndex != currentSelectableIndex) { SelectedTokenIndex = nextSelectableIndex; }
     }
+
 
     public void MoveKanjiTokenSelection(int delta)
     {
         if (CurrentViewInternal != "detail" || !Tokens.Any() || DetailFocusTarget != "Sentence") return;
         int currentSelectableIndex = SelectedTokenIndex;
         int numSelectable = Tokens.Count(t => t.IsSelectable);
-        if (numSelectable == 0) return;
-        int direction = Math.Sign(delta);
-        if (direction == 0) return;
+        if (numSelectable <= 1) return;
+        int direction = Math.Sign(delta); if (direction == 0) return;
 
         int searchIndex = currentSelectableIndex;
         while (true)
         {
             searchIndex += direction;
             if (searchIndex < 0 || searchIndex >= numSelectable) break;
-
             TokenInfo? nextToken = FindSelectableTokenByIndex(searchIndex);
-            if (nextToken != null && nextToken.HasKanji)
-            {
-                SelectedTokenIndex = searchIndex;
-                break;
-            }
+            if (nextToken != null && nextToken.HasKanji) { SelectedTokenIndex = searchIndex; break; }
         }
     }
+
 
     private bool IsTokenSelectable(TokenInfo token)
     {
@@ -292,6 +306,7 @@ public partial class MainWindowViewModel : ObservableObject
         const string japanesePattern = @"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u3400-\u4DBF]";
         return Regex.IsMatch(token.Surface, japanesePattern);
     }
+
 
     public int GetActualTokenIndex(int selectableIndex)
     {
@@ -302,20 +317,17 @@ public partial class MainWindowViewModel : ObservableObject
             if (Tokens[i].IsSelectable)
             {
                 currentSelectableCount++;
-                if (currentSelectableCount == selectableIndex)
-                {
-                    return i;
-                }
+                if (currentSelectableCount == selectableIndex) { return i; }
             }
         }
         return -1;
     }
 
+
     private void OnJapaneseTextCopied(object? sender, string text)
     {
         var newItem = new SentenceHistoryItem(text);
-        SentenceHistory.Add(newItem);
-
+        _dispatcherQueue.TryEnqueue(() => { SentenceHistory.Add(newItem); });
         _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
             if (SentenceHistory.Count > 0)
@@ -326,6 +338,7 @@ public partial class MainWindowViewModel : ObservableObject
         });
     }
 
+
     public void MoveSelection(int delta)
     {
         if (SentenceHistory.Count == 0) return;
@@ -333,33 +346,45 @@ public partial class MainWindowViewModel : ObservableObject
         SelectedSentenceIndex = Math.Clamp(newIndex, 0, SentenceHistory.Count - 1);
     }
 
+
     public void EnterMenu()
     {
         if (CurrentViewInternal == "menu") return;
-
         PreviousViewInternal = CurrentViewInternal;
         CurrentViewInternal = "menu";
         reset_navigation_state_internal();
         System.Diagnostics.Debug.WriteLine($"[ViewModel] Entering Menu. Previous view: {PreviousViewInternal}");
     }
 
+
     public void ExitMenu()
     {
         if (CurrentViewInternal != "menu") return;
-
         CurrentViewInternal = PreviousViewInternal;
         reset_navigation_state_internal();
         System.Diagnostics.Debug.WriteLine($"[ViewModel] Exiting Menu. Returning to: {CurrentViewInternal}");
     }
+
 
     private void reset_navigation_state_internal()
     {
         System.Diagnostics.Debug.WriteLine("[ViewModel] Navigation state reset requested (needs implementation).");
     }
 
+
     public void Cleanup()
     {
         _clipboardService.StopMonitoring();
         _clipboardService.JapaneseTextCopied -= OnJapaneseTextCopied;
+        RequestLoadDefinitionHtml = null;
+    }
+
+
+    private Task DispatcherQueue_EnqueueAsync(Func<Task> asyncFunction, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
+    {
+        var tcs = new TaskCompletionSource();
+        if (!_dispatcherQueue.TryEnqueue(priority, async () => { try { await asyncFunction(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } }))
+        { tcs.SetException(new InvalidOperationException("Failed to enqueue async action.")); }
+        return tcs.Task;
     }
 }

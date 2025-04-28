@@ -1,5 +1,4 @@
-﻿// Converters/KatakanaToHiraganaConverter.cs
-using System;
+﻿using System;
 using System.Text;
 using Microsoft.UI.Xaml.Data;
 
@@ -11,7 +10,7 @@ public class KatakanaToHiraganaConverter : IValueConverter
     {
         if (value is string katakanaString && !string.IsNullOrEmpty(katakanaString))
         {
-            return ToHiragana(katakanaString);
+            return ToHiraganaStatic(katakanaString);
         }
         return value;
     }
@@ -21,36 +20,17 @@ public class KatakanaToHiraganaConverter : IValueConverter
         throw new NotImplementedException();
     }
 
-    private static string ToHiragana(string katakana)
+    public static string ToHiraganaStatic(string? katakana)
     {
-        if (string.IsNullOrEmpty(katakana))
-        {
-            return katakana;
-        }
-
+        if (string.IsNullOrEmpty(katakana)) return katakana ?? string.Empty;
         StringBuilder hiragana = new StringBuilder(katakana.Length);
         foreach (char c in katakana)
         {
-            if (c >= '\u30A1' && c <= '\u30F6')
-            {
-                hiragana.Append((char)(c - 0x60));
-            }
-            else if (c == '\u3099' || c == '\u309A' || c == '\u30FB' || c == '\u30FC')
-            {
-                hiragana.Append(c);
-            }
-            else if (c == '\u30FD')
-            {
-                hiragana.Append('\u307E');
-            }
-            else if (c == '\u30FE')
-            {
-                hiragana.Append('\u307F');
-            }
-            else
-            {
-                hiragana.Append(c);
-            }
+            if (c >= '\u30A1' && c <= '\u30F6') { hiragana.Append((char)(c - 0x60)); }
+            else if (c == '\u30FD') { hiragana.Append('\u307E'); }
+            else if (c == '\u30FE') { hiragana.Append('\u307F'); }
+            else if (c == '\u30FC' || c == '\u30FB' || c == '\u3099' || c == '\u309A') { hiragana.Append(c); }
+            else { hiragana.Append(c); }
         }
         return hiragana.ToString();
     }
