@@ -93,7 +93,7 @@ appsettings.Development.json
 # user_data.db-journal
 
 # Comment out the lines above if you WANT to commit your empty user_data.db
-# O si quieres commitear una versión inicial específica.
+# O si quieres commitear una versiï¿½n inicial especï¿½fica.
 # NO commitees jmdict.db si es muy grande y se genera desde el XML.
 
 # Logs
@@ -108,3 +108,6 @@ $RECYCLE.BIN/
 
 # Build results
 [Bb]uild/
+
+# Data
+Data/
