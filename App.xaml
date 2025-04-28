@@ -17,6 +17,7 @@
             <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
             <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <converters:KatakanaToHiraganaConverter x:Key="KatakanaToHiraganaConverter" />
 
             <!--  Modernized global button style  -->
             <Style TargetType="Button">

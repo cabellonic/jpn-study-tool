@@ -59,8 +59,8 @@
             Margin="10"
             Visibility="Collapsed">
             <Grid.RowDefinitions>
-                <RowDefinition Height="3*" MaxHeight="600" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="3*" MaxHeight="250" />
+                <RowDefinition Height="7*" />
             </Grid.RowDefinitions>
 
             <ScrollViewer
@@ -88,119 +88,38 @@
             <ScrollViewer
                 x:Name="DefinitionScrollViewer"
                 Grid.Row="1"
-                Padding="5"
+                Padding="5,0,5,5"
                 Background="Transparent"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
                 TabIndex="2"
                 VerticalScrollBarVisibility="Auto"
                 VerticalScrollMode="Auto">
-                <StackPanel MinHeight="150" Orientation="Vertical">
-                    <TextBlock
-                        Margin="0,0,0,5"
-                        Style="{ThemeResource SubtitleTextBlockStyle}"
-                        Text="Token Info:"
-                        Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}" />
 
-                    <Grid ColumnSpacing="10" Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" MinWidth="100" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="7*" />
+                        <ColumnDefinition Width="3*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel
+                        Grid.Column="0"
+                        MinHeight="150"
+                        Margin="0,0,10,0"
+                        Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
 
                         <TextBlock
-                            Grid.Row="0"
-                            Grid.Column="0"
+                            Margin="0,0,0,0"
+                            FontSize="28"
                             FontWeight="SemiBold"
-                            Text="Reading:" />
-                        <TextBlock
-                            Grid.Row="0"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.Reading, FallbackValue='-'}"
+                            Text="{Binding SelectedToken.Surface, FallbackValue='-'}"
                             TextWrapping="Wrap" />
 
                         <TextBlock
-                            Grid.Row="1"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="Base Form:" />
-                        <TextBlock
-                            Grid.Row="1"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.BaseForm, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                        <TextBlock
-                            Grid.Row="2"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="PoS:" />
-                        <TextBlock
-                            Grid.Row="2"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.PartOfSpeech, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                        <TextBlock
-                            Grid.Row="3"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="Subcat 1:" />
-                        <TextBlock
-                            Grid.Row="3"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.POSSubcategory1, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                        <TextBlock
-                            Grid.Row="4"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="Subcat 2:" />
-                        <TextBlock
-                            Grid.Row="4"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.POSSubcategory2, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                        <TextBlock
-                            Grid.Row="5"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="Conj. Type:" />
-                        <TextBlock
-                            Grid.Row="5"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.ConjugationType, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                        <TextBlock
-                            Grid.Row="6"
-                            Grid.Column="0"
-                            FontWeight="SemiBold"
-                            Text="Conj. Form:" />
-                        <TextBlock
-                            Grid.Row="6"
-                            Grid.Column="1"
-                            Text="{Binding SelectedToken.ConjugationForm, FallbackValue='-'}"
-                            TextWrapping="Wrap" />
-
-                    </Grid>
-
-                    <Border
-                        Height="1"
-                        Margin="0,10"
-                        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                        Visibility="{Binding SelectedTokenDefinitionEntry, Converter={StaticResource NullToVisibilityConverter}}" />
-
-                    <StackPanel Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
+                            Margin="0,0,0,15"
+                            FontSize="18"
+                            Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"
+                            Text="{Binding SelectedToken.Reading, FallbackValue='-', Converter={StaticResource KatakanaToHiraganaConverter}}" />
 
                         <TextBlock
                             Margin="0,0,0,5"
@@ -214,7 +133,7 @@
                             Text="Searching definition..."
                             Visibility="{Binding IsSearchingDefinition, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}" />
 
-                        <Grid>
+                        <Grid Margin="0,0,0,10">
                             <TextBlock
                                 x:Name="DefinitionTextBlock"
                                 FontSize="{Binding DefinitionFontSize, ElementName=RootWindow, Mode=OneWay}"
@@ -230,11 +149,7 @@
                                 Visibility="{Binding SelectedTokenDefinitionEntry, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
                         </Grid>
 
-
-                        <StackPanel
-                            Margin="0,10,0,0"
-                            Spacing="5"
-                            Visibility="{Binding SelectedTokenDefinitionEntry, Converter={StaticResource NullToVisibilityConverter}}">
+                        <StackPanel Spacing="5" Visibility="{Binding SelectedTokenDefinitionEntry, Converter={StaticResource NullToVisibilityConverter}}">
                             <StackPanel
                                 Orientation="Horizontal"
                                 Spacing="5"
@@ -250,9 +165,89 @@
                                 <TextBlock Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}" Text="{Binding SelectedTokenDefinitionEntry.DefinitionTagsDisplay}" />
                             </StackPanel>
                         </StackPanel>
-
                     </StackPanel>
-                </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="10,0,0,0"
+                        Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
+
+                        <TextBlock
+                            Margin="0,0,0,5"
+                            Style="{ThemeResource SubtitleTextBlockStyle}"
+                            Text="Token Info:" />
+
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" MinWidth="80" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="PoS:" />
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Text="{Binding SelectedToken.PartOfSpeech, FallbackValue='-'}"
+                                TextWrapping="Wrap" />
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="Subcat 1:" />
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Text="{Binding SelectedToken.POSSubcategory1, FallbackValue='-'}"
+                                TextWrapping="Wrap" />
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="Subcat 2:" />
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Text="{Binding SelectedToken.POSSubcategory2, FallbackValue='-'}"
+                                TextWrapping="Wrap" />
+
+                            <TextBlock
+                                Grid.Row="3"
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="Conj. Type:" />
+                            <TextBlock
+                                Grid.Row="3"
+                                Grid.Column="1"
+                                Text="{Binding SelectedToken.ConjugationType, FallbackValue='-'}"
+                                TextWrapping="Wrap" />
+
+                            <TextBlock
+                                Grid.Row="4"
+                                Grid.Column="0"
+                                FontWeight="SemiBold"
+                                Text="Conj. Form:" />
+                            <TextBlock
+                                Grid.Row="4"
+                                Grid.Column="1"
+                                Text="{Binding SelectedToken.ConjugationForm, FallbackValue='-'}"
+                                TextWrapping="Wrap" />
+
+                        </Grid>
+                    </StackPanel>
+                </Grid>
             </ScrollViewer>
         </Grid>
     </Grid>

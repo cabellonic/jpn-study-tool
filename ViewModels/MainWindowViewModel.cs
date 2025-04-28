@@ -1,9 +1,9 @@
-﻿// ViewModels/MainWindowViewModel.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JpnStudyTool.Models;
 using JpnStudyTool.Services;
@@ -66,25 +66,47 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedSentenceIndexChanged(int value)
     {
-        if (value >= 0 && value < SentenceHistory.Count) { SelectedSentenceItem = SentenceHistory[value]; }
-        else { SelectedSentenceItem = null; }
+        if (value >= 0 && value < SentenceHistory.Count)
+        {
+            SelectedSentenceItem = SentenceHistory[value];
+        }
+        else
+        {
+            SelectedSentenceItem = null;
+        }
         System.Diagnostics.Debug.WriteLine($"[ViewModel] List Index changed to: {value}");
     }
 
+    partial void OnSelectedTokenIndexChanged(int value)
+    {
+        SelectedToken = FindSelectableTokenByIndex(value);
+    }
 
-    async partial void OnSelectedTokenChanged(TokenInfo? value)
+    partial void OnSelectedTokenChanged(TokenInfo? value)
+    {
+        _ = LoadDefinitionForTokenAsync(value);
+    }
+
+    private async Task LoadDefinitionForTokenAsync(TokenInfo? token)
     {
         _dispatcherQueue.TryEnqueue(() => FoundDefinitions.Clear());
         OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
 
-        if (value != null && CurrentViewInternal == "detail")
+        if (token != null && CurrentViewInternal == "detail")
         {
-            System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token Changed: {value.Surface}. Base='{value.BaseForm}', Reading='{value.Reading}'. Requesting definition search...");
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition Request: {token.Surface}. Base='{token.BaseForm}', Reading='{token.Reading}'.");
             IsSearchingDefinition = true;
+            List<DictionaryEntry> definitions = new List<DictionaryEntry>();
             try
             {
-                List<DictionaryEntry> definitions = await _dictionaryService.FindEntriesAsync(value.BaseForm, value.Reading);
-
+                definitions = await _dictionaryService.FindEntriesAsync(token.BaseForm, token.Reading);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Error fetching definitions: {ex.Message}");
+            }
+            finally
+            {
                 _dispatcherQueue.TryEnqueue(() =>
                 {
                     FoundDefinitions.Clear();
@@ -94,31 +116,23 @@ public partial class MainWindowViewModel : ObservableObject
                         {
                             FoundDefinitions.Add(entry);
                         }
-                        System.Diagnostics.Debug.WriteLine($"[ViewModel] Found {FoundDefinitions.Count} definitions for '{value.Surface}'. Displaying the first.");
+                        System.Diagnostics.Debug.WriteLine($"[ViewModel] Found {FoundDefinitions.Count} definitions for '{token.Surface}'. Displaying the first.");
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"[ViewModel] No definitions found for '{value.Surface}'.");
+                        System.Diagnostics.Debug.WriteLine($"[ViewModel] No definitions found for '{token.Surface}'.");
                     }
                     OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
+                    IsSearchingDefinition = false;
                 });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] Error fetching definitions: {ex.Message}");
-                _dispatcherQueue.TryEnqueue(() => FoundDefinitions.Clear());
-                OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
-            }
-            finally
-            {
-                IsSearchingDefinition = false;
             }
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[ViewModel] Selected Token is null or not in detail view. Definitions cleared.");
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition skipped (token null or not in detail view).");
         }
     }
+
 
     private TokenInfo? FindSelectableTokenByIndex(int selectableIndex)
     {
@@ -173,7 +187,16 @@ public partial class MainWindowViewModel : ObservableObject
             PreviousViewInternal = CurrentViewInternal;
             CurrentViewInternal = "detail";
             DetailFocusTarget = "Sentence";
-            SelectedTokenIndex = firstValidTokenIndex;
+
+            TokenInfo? initialToken = FindSelectableTokenByIndex(firstValidTokenIndex);
+            _selectedTokenIndex = firstValidTokenIndex;
+            OnPropertyChanged(nameof(SelectedTokenIndex));
+
+            _selectedToken = initialToken;
+            OnPropertyChanged(nameof(SelectedToken));
+
+            _ = LoadDefinitionForTokenAsync(initialToken);
+
         });
     }
 
@@ -190,8 +213,11 @@ public partial class MainWindowViewModel : ObservableObject
             FoundDefinitions.Clear();
             OnPropertyChanged(nameof(SelectedTokenDefinitionEntry));
 
-            SelectedTokenIndex = -1;
-            SelectedToken = null;
+            _selectedToken = null;
+            OnPropertyChanged(nameof(SelectedToken));
+            _selectedTokenIndex = -1;
+            OnPropertyChanged(nameof(SelectedTokenIndex));
+
 
             CurrentViewInternal = "list";
             DetailFocusTarget = "Sentence";
@@ -235,7 +261,6 @@ public partial class MainWindowViewModel : ObservableObject
         if (nextSelectableIndex != currentSelectableIndex)
         {
             SelectedTokenIndex = nextSelectableIndex;
-            SelectedToken = FindSelectableTokenByIndex(nextSelectableIndex);
         }
     }
 
@@ -258,7 +283,6 @@ public partial class MainWindowViewModel : ObservableObject
             if (nextToken != null && nextToken.HasKanji)
             {
                 SelectedTokenIndex = searchIndex;
-                SelectedToken = nextToken;
                 break;
             }
         }
