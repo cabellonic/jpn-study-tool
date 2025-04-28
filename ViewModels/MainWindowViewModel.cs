@@ -130,6 +130,7 @@ public partial class MainWindowViewModel : ObservableObject
         else
         {
             System.Diagnostics.Debug.WriteLine($"[ViewModel] LoadDefinition skipped (token null or not in detail view).");
+            _dispatcherQueue.TryEnqueue(() => IsSearchingDefinition = false);
         }
     }
 
@@ -191,12 +192,10 @@ public partial class MainWindowViewModel : ObservableObject
             TokenInfo? initialToken = FindSelectableTokenByIndex(firstValidTokenIndex);
             _selectedTokenIndex = firstValidTokenIndex;
             OnPropertyChanged(nameof(SelectedTokenIndex));
-
             _selectedToken = initialToken;
             OnPropertyChanged(nameof(SelectedToken));
 
             _ = LoadDefinitionForTokenAsync(initialToken);
-
         });
     }
 
@@ -225,7 +224,6 @@ public partial class MainWindowViewModel : ObservableObject
             if (previousListIndex >= 0 && previousListIndex < SentenceHistory.Count)
             {
                 SelectedSentenceIndex = previousListIndex;
-                SelectedSentenceItem = SentenceHistory[previousListIndex];
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] Re-selected sentence at index {previousListIndex}.");
             }
             else
@@ -315,11 +313,16 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnJapaneseTextCopied(object? sender, string text)
     {
-        _dispatcherQueue.TryEnqueue(() =>
+        var newItem = new SentenceHistoryItem(text);
+        SentenceHistory.Add(newItem);
+
+        _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
-            var newItem = new SentenceHistoryItem(text);
-            SentenceHistory.Add(newItem);
-            SelectedSentenceIndex = SentenceHistory.Count - 1;
+            if (SentenceHistory.Count > 0)
+            {
+                SelectedSentenceIndex = SentenceHistory.Count - 1;
+                System.Diagnostics.Debug.WriteLine($"[ViewModel] Enqueued selection update to index {SelectedSentenceIndex}");
+            }
         });
     }
 
