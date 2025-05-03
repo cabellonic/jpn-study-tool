@@ -16,6 +16,9 @@ public class AppSettings
     public Dictionary<string, string?> LocalJoystickBindings { get; set; }
     public Dictionary<string, string?> LocalKeyboardBindings { get; set; }
 
+    public bool UseAIMode { get; set; } = false;
+    public string? GeminiApiKey { get; set; } = null;
+
     public AppSettings()
     {
         GlobalJoystickBindings = new Dictionary<string, string?>();

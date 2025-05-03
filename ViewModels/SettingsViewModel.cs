@@ -1,5 +1,4 @@
-﻿// ViewModels/SettingsViewModel.cs
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,6 +18,17 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _readClipboardOnLoad;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsApiKeyInputVisible))]
+    private bool _useAIMode;
+
+    [ObservableProperty]
+    private string? _geminiApiKey;
+
+    public bool IsApiKeyInputVisible => UseAIMode;
+    public string ApiKeyWarningText => UseAIMode ? "API Key will be saved locally in configuration file." : string.Empty;
+
 
     public ObservableCollection<BindingConfig> Bindings { get; } = new();
 
@@ -69,6 +79,8 @@ public partial class SettingsViewModel : ObservableObject
         _loadedSettings = _settingsService.LoadSettings();
 
         _readClipboardOnLoad = _loadedSettings.ReadClipboardOnLoad;
+        _useAIMode = _loadedSettings.UseAIMode;
+        _geminiApiKey = _loadedSettings.GeminiApiKey;
 
         PopulateBindingsCollection();
         ApplyLoadedBindings();
@@ -90,16 +102,12 @@ public partial class SettingsViewModel : ObservableObject
         Gamepad.GamepadRemoved += OnGamepadAddedOrRemoved;
     }
 
-    partial void OnIsCapturingKeyboardChanged(bool value)
+    partial void OnUseAIModeChanged(bool value)
     {
-        System.Diagnostics.Debug.WriteLine($"[SettingsVM] IsCapturingKeyboard changed to: {value}");
+        OnPropertyChanged(nameof(IsApiKeyInputVisible));
+        OnPropertyChanged(nameof(ApiKeyWarningText));
     }
 
-    partial void OnIsCapturingJoystickChanged(bool value)
-    {
-        System.Diagnostics.Debug.WriteLine($"[SettingsVM] IsCapturingJoystick changed to: {value}");
-        // Polling logic now managed by SettingsWindow.xaml.cs based on this property change
-    }
 
     private void PopulateBindingsCollection()
     {
@@ -118,7 +126,6 @@ public partial class SettingsViewModel : ObservableObject
 
     private void ApplyLoadedBindings()
     {
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Applying loaded bindings...");
         foreach (var binding in Bindings)
         {
             bool isGlobal = binding.ActionId.StartsWith("GLOBAL_");
@@ -129,15 +136,11 @@ public partial class SettingsViewModel : ObservableObject
             keySourceDict?.TryGetValue(binding.ActionId, out keyBinding);
             binding.JoystickBindingDisplay = joyBinding;
             binding.KeyboardBindingDisplay = keyBinding;
-            if (joyBinding != null) System.Diagnostics.Debug.WriteLine($"[SettingsVM] Loaded Joy '{binding.ActionId}': {joyBinding}");
-            if (keyBinding != null) System.Diagnostics.Debug.WriteLine($"[SettingsVM] Loaded Key '{binding.ActionId}': {keyBinding}");
         }
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Finished applying loaded bindings.");
     }
 
     private void DetectAndSelectDefaultGamepad()
     {
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Detecting gamepads via HidSharp...");
         HidDevice? selectedDevice = null; int? foundVid = null; int? foundPid = null;
         string detectedName = "No supported gamepad detected for hotkeys.";
         try
@@ -148,15 +151,14 @@ public partial class SettingsViewModel : ObservableObject
             {
                 foundVid = selectedDevice.VendorID; foundPid = selectedDevice.ProductID;
                 try { detectedName = $"{selectedDevice.GetProductName()} ({foundVid:X4}/{foundPid:X4})"; } catch { detectedName = $"Gamepad ({foundVid:X4}/{foundPid:X4})"; }
-                System.Diagnostics.Debug.WriteLine($"[SettingsVM] Found supported HID gamepad: {detectedName}");
             }
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SettingsVM] Error detecting HID gamepads: {ex.Message}"); }
+        catch { }
 
-        if (!_currentSelectedVid.HasValue || !_currentSelectedPid.HasValue) { CurrentSelectedVid = foundVid; CurrentSelectedPid = foundPid; DetectedGamepadName = detectedName; System.Diagnostics.Debug.WriteLine($"[SettingsVM] Using detected gamepad as default."); }
-        else if (foundVid == _currentSelectedVid && foundPid == _currentSelectedPid) { DetectedGamepadName = detectedName; System.Diagnostics.Debug.WriteLine($"[SettingsVM] Detected gamepad matches saved selection."); }
-        else if (foundVid.HasValue) { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: {detectedName}"; System.Diagnostics.Debug.WriteLine($"[SettingsVM] Detected gamepad differs from saved one. Keeping saved selection."); }
-        else { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: None"; System.Diagnostics.Debug.WriteLine($"[SettingsVM] No supported gamepad detected now, but using saved VID/PID."); }
+        if (!_currentSelectedVid.HasValue || !_currentSelectedPid.HasValue) { CurrentSelectedVid = foundVid; CurrentSelectedPid = foundPid; DetectedGamepadName = detectedName; }
+        else if (foundVid == _currentSelectedVid && foundPid == _currentSelectedPid) { DetectedGamepadName = detectedName; }
+        else if (foundVid.HasValue) { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: {detectedName}"; }
+        else { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: None"; }
     }
 
     private bool CanStartCapture(BindingConfig? binding) => binding != null && !IsCapturingKeyboard && !IsCapturingJoystick;
@@ -167,7 +169,6 @@ public partial class SettingsViewModel : ObservableObject
         if (!CanStartCapture(binding) || binding == null) return;
         BindingToCapture = binding; IsCapturingKeyboard = true; IsCapturingJoystick = false;
         CaptureStatusText = $"Press key(s) for '{BindingToCapture.ActionName}' (ESC to cancel)...";
-        System.Diagnostics.Debug.WriteLine($"[SettingsVM] Starting keyboard capture for {BindingToCapture.ActionId}");
     }
 
     private void StartJoystickCapture(BindingConfig? binding)
@@ -175,17 +176,15 @@ public partial class SettingsViewModel : ObservableObject
         if (!CanStartJoystickCapture(binding) || binding == null) return;
         BindingToCapture = binding; IsCapturingJoystick = true; IsCapturingKeyboard = false;
         CaptureStatusText = $"Press button for '{BindingToCapture.ActionName}' (ESC to cancel)...";
-        System.Diagnostics.Debug.WriteLine($"[SettingsVM] Starting joystick capture for {BindingToCapture.ActionId}");
     }
 
     public void ApplyKeyboardCapture(string displayValue, object dataValue)
     {
         if (!IsCapturingKeyboard || BindingToCapture == null || string.IsNullOrWhiteSpace(displayValue)) return;
-        System.Diagnostics.Debug.WriteLine($"[SettingsVM] Applying Keyboard capture for {BindingToCapture.ActionId}: {displayValue}");
         foreach (var existingBinding in Bindings)
         {
             if (existingBinding != BindingToCapture && !string.IsNullOrEmpty(existingBinding.KeyboardBindingDisplay) && existingBinding.KeyboardBindingDisplay.Equals(displayValue, StringComparison.OrdinalIgnoreCase))
-            { System.Diagnostics.Debug.WriteLine($"[SettingsVM] Clearing previous keyboard binding '{displayValue}' from action '{existingBinding.ActionId}'"); existingBinding.KeyboardBindingDisplay = null; }
+            { existingBinding.KeyboardBindingDisplay = null; }
         }
         BindingToCapture.KeyboardBindingDisplay = displayValue; BindingToCapture.KeyboardBindingData = dataValue;
         CancelCapture();
@@ -197,55 +196,61 @@ public partial class SettingsViewModel : ObservableObject
         string? internalButtonCode = MapGamepadButtonToInternalCode(dataValue);
         if (internalButtonCode != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[SettingsVM] Applying Joystick capture for {BindingToCapture.ActionId}: Internal='{internalButtonCode}'");
             foreach (var existingBinding in Bindings)
             {
                 if (existingBinding != BindingToCapture && !string.IsNullOrEmpty(existingBinding.JoystickBindingDisplay) && existingBinding.JoystickBindingDisplay.Equals(internalButtonCode, StringComparison.OrdinalIgnoreCase))
-                { System.Diagnostics.Debug.WriteLine($"[SettingsVM] Clearing previous joystick binding '{internalButtonCode}' from action '{existingBinding.ActionId}'"); existingBinding.JoystickBindingDisplay = null; }
+                { existingBinding.JoystickBindingDisplay = null; }
             }
             BindingToCapture.JoystickBindingDisplay = internalButtonCode; BindingToCapture.JoystickBindingData = dataValue;
         }
-        else { System.Diagnostics.Debug.WriteLine($"[SettingsVM] Joystick captured button '{displayValue}' has no internal mapping. Ignoring."); }
         CancelCapture();
     }
 
     private string? MapGamepadButtonToInternalCode(object dataValue) => dataValue is GamepadButtons button ? button switch { GamepadButtons.A => "BTN_A", GamepadButtons.B => "BTN_B", GamepadButtons.X => "BTN_X", GamepadButtons.Y => "BTN_Y", GamepadButtons.LeftShoulder => "BTN_TL", GamepadButtons.RightShoulder => "BTN_TR", GamepadButtons.View => "BTN_SELECT", GamepadButtons.Menu => "BTN_START", GamepadButtons.LeftThumbstick => "BTN_THUMBL", GamepadButtons.RightThumbstick => "BTN_THUMBR", GamepadButtons.DPadUp => "DPAD_UP", GamepadButtons.DPadDown => "DPAD_DOWN", GamepadButtons.DPadLeft => "DPAD_LEFT", GamepadButtons.DPadRight => "DPAD_RIGHT", _ => null } : null;
 
-    private void CancelCapture() { if (!CanCancelCapture) return; System.Diagnostics.Debug.WriteLine("[SettingsVM] Cancelling capture."); IsCapturingKeyboard = false; IsCapturingJoystick = false; BindingToCapture = null; CaptureStatusText = null; }
+    private void CancelCapture() { if (!CanCancelCapture) return; IsCapturingKeyboard = false; IsCapturingJoystick = false; BindingToCapture = null; CaptureStatusText = null; }
 
     private void ResetKeyboardDefaults()
     {
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Resetting keyboard bindings to defaults...");
         var defaults = _settingsService.GetDefaultSettings();
         foreach (var binding in Bindings)
         {
             bool isGlobal = binding.ActionId.StartsWith("GLOBAL_"); var defaultDict = isGlobal ? defaults.GlobalKeyboardBindings : defaults.LocalKeyboardBindings;
-            if (defaultDict.TryGetValue(binding.ActionId, out string? defaultKeyBinding)) { binding.KeyboardBindingDisplay = defaultKeyBinding; if (defaultKeyBinding != null) System.Diagnostics.Debug.WriteLine($"[SettingsVM] Reset Key '{binding.ActionId}' to: {defaultKeyBinding}"); }
-            else { binding.KeyboardBindingDisplay = null; System.Diagnostics.Debug.WriteLine($"[SettingsVM] Cleared Key '{binding.ActionId}' (no default)."); }
+            if (defaultDict.TryGetValue(binding.ActionId, out string? defaultKeyBinding)) { binding.KeyboardBindingDisplay = defaultKeyBinding; }
+            else { binding.KeyboardBindingDisplay = null; }
         }
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Finished resetting keyboard bindings.");
     }
 
     private void ResetJoystickDefaults()
     {
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Resetting joystick bindings to defaults...");
         var defaults = _settingsService.GetDefaultSettings();
         foreach (var binding in Bindings)
         {
             bool isGlobal = binding.ActionId.StartsWith("GLOBAL_"); var defaultDict = isGlobal ? defaults.GlobalJoystickBindings : defaults.LocalJoystickBindings;
-            if (defaultDict.TryGetValue(binding.ActionId, out string? defaultJoyBinding)) { binding.JoystickBindingDisplay = defaultJoyBinding; if (defaultJoyBinding != null) System.Diagnostics.Debug.WriteLine($"[SettingsVM] Reset Joy '{binding.ActionId}' to: {defaultJoyBinding}"); }
-            else { binding.JoystickBindingDisplay = null; System.Diagnostics.Debug.WriteLine($"[SettingsVM] Cleared Joy '{binding.ActionId}' (no default)."); }
+            if (defaultDict.TryGetValue(binding.ActionId, out string? defaultJoyBinding)) { binding.JoystickBindingDisplay = defaultJoyBinding; }
+            else { binding.JoystickBindingDisplay = null; }
         }
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Finished resetting joystick bindings.");
     }
 
     private void SaveAndClose()
     {
-        System.Diagnostics.Debug.WriteLine("[SettingsVM] Preparing settings to save...");
-        var settingsToSave = new AppSettings { ReadClipboardOnLoad = this.ReadClipboardOnLoad, SelectedGlobalGamepadVid = this.CurrentSelectedVid, SelectedGlobalGamepadPid = this.CurrentSelectedPid, GlobalJoystickBindings = new(), GlobalKeyboardBindings = new(), LocalJoystickBindings = new(), LocalKeyboardBindings = new() };
+        var settingsToSave = new AppSettings
+        {
+            ReadClipboardOnLoad = this.ReadClipboardOnLoad,
+            UseAIMode = this.UseAIMode,
+            GeminiApiKey = this.GeminiApiKey,
+            SelectedGlobalGamepadVid = this.CurrentSelectedVid,
+            SelectedGlobalGamepadPid = this.CurrentSelectedPid,
+            GlobalJoystickBindings = new(),
+            GlobalKeyboardBindings = new(),
+            LocalJoystickBindings = new(),
+            LocalKeyboardBindings = new()
+        };
         foreach (var binding in Bindings)
         {
-            bool isGlobal = binding.ActionId.StartsWith("GLOBAL_"); var joyTargetDict = isGlobal ? settingsToSave.GlobalJoystickBindings : settingsToSave.LocalJoystickBindings; var keyTargetDict = isGlobal ? settingsToSave.GlobalKeyboardBindings : settingsToSave.LocalKeyboardBindings;
+            bool isGlobal = binding.ActionId.StartsWith("GLOBAL_");
+            var joyTargetDict = isGlobal ? settingsToSave.GlobalJoystickBindings : settingsToSave.LocalJoystickBindings;
+            var keyTargetDict = isGlobal ? settingsToSave.GlobalKeyboardBindings : settingsToSave.LocalKeyboardBindings;
             if (!string.IsNullOrEmpty(binding.JoystickBindingDisplay)) joyTargetDict[binding.ActionId] = binding.JoystickBindingDisplay;
             if (!string.IsNullOrEmpty(binding.KeyboardBindingDisplay)) keyTargetDict[binding.ActionId] = binding.KeyboardBindingDisplay;
         }
@@ -253,7 +258,7 @@ public partial class SettingsViewModel : ObservableObject
         RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
-    private void CloseWithoutSaving() { System.Diagnostics.Debug.WriteLine("[SettingsVM] Cancelling settings changes."); RequestClose?.Invoke(this, EventArgs.Empty); }
+    private void CloseWithoutSaving() { RequestClose?.Invoke(this, EventArgs.Empty); }
 
     private void UpdateGamepadStatus()
     {
@@ -261,14 +266,13 @@ public partial class SettingsViewModel : ObservableObject
         if (currentlyConnected != IsGamepadConnected)
         {
             IsGamepadConnected = currentlyConnected;
-            System.Diagnostics.Debug.WriteLine($"[SettingsVM] Gamepad connected (WinRT): {IsGamepadConnected}");
             _dispatcherQueue?.TryEnqueue(() => { (StartCaptureJoystickCommand as RelayCommand<BindingConfig>)?.NotifyCanExecuteChanged(); (ResetJoystickDefaultsCommand as RelayCommand)?.NotifyCanExecuteChanged(); DetectAndSelectDefaultGamepad(); });
         }
     }
 
     private void OnGamepadAddedOrRemoved(object? sender, object e) => _dispatcherQueue?.TryEnqueue(UpdateGamepadStatus);
 
-    public void CleanupOnClose() { Gamepad.GamepadAdded -= OnGamepadAddedOrRemoved; Gamepad.GamepadRemoved -= OnGamepadAddedOrRemoved; System.Diagnostics.Debug.WriteLine("[SettingsVM] Gamepad event handlers removed."); }
+    public void CleanupOnClose() { Gamepad.GamepadAdded -= OnGamepadAddedOrRemoved; Gamepad.GamepadRemoved -= OnGamepadAddedOrRemoved; }
 }
 
 public static class SettingsIDs { public const int NINTENDO_VID = 0x057E; public const int PRO_CONTROLLER_PID_USB = 0x2009; public const int XBOX_VID = 0x045E; public const int XBOX_PID = 0x028E; }

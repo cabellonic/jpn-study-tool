@@ -24,6 +24,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -32,25 +33,50 @@
 
             <TextBlock
                 Grid.Row="0"
-                Margin="0,0,0,20"
+                Margin="0,0,0,10"
                 FontSize="24"
                 Text="Settings" />
 
             <StackPanel
                 Grid.Row="1"
-                Margin="0,0,0,15"
+                Margin="0,0,0,10"
                 Spacing="5">
                 <CheckBox Content="Read clipboard content on startup" IsChecked="{Binding ReadClipboardOnLoad, Mode=TwoWay}" />
             </StackPanel>
 
-            <Border
+            <StackPanel
                 Grid.Row="2"
-                Margin="0,10,0,15"
+                Margin="0,0,0,15"
+                Spacing="8">
+                <TextBlock
+                    Margin="0,0,0,5"
+                    Style="{ThemeResource BaseTextBlockStyle}"
+                    Text="Analysis Mode:" />
+                <ToggleSwitch
+                    Header="Use AI Analysis (Gemini)"
+                    IsOn="{Binding UseAIMode, Mode=TwoWay}"
+                    OffContent="Normal (Offline)"
+                    OnContent="AI (Online)" />
+
+                <StackPanel Spacing="5" Visibility="{Binding IsApiKeyInputVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="Gemini API Key:" />
+                    <TextBox PlaceholderText="Enter your Gemini API Key here" Text="{Binding GeminiApiKey, Mode=TwoWay}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="{Binding ApiKeyWarningText}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </StackPanel>
+
+            <Border
+                Grid.Row="3"
+                Margin="0,5,0,15"
                 BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
                 BorderThickness="0,0,0,1" />
 
             <StackPanel
-                Grid.Row="3"
+                Grid.Row="4"
                 Margin="0,0,0,10"
                 Orientation="Horizontal">
                 <TextBlock
@@ -64,14 +90,14 @@
             </StackPanel>
 
             <TextBlock
-                Grid.Row="4"
+                Grid.Row="5"
                 Margin="0,0,0,10"
                 FontSize="20"
                 Text="Input Bindings" />
 
             <ListView
-                Grid.Row="5"
-                MaxHeight="400"
+                Grid.Row="6"
+                MaxHeight="350"
                 HorizontalContentAlignment="Stretch"
                 IsItemClickEnabled="False"
                 ItemsSource="{Binding Bindings}"
@@ -121,7 +147,7 @@
                                 HorizontalAlignment="Stretch"
                                 Command="{Binding DataContext.StartCaptureKeyboardCommand, ElementName=SettingsRootGrid}"
                                 CommandParameter="{Binding}"
-                                Content="{Binding KeyboardBindingDisplayResolved, FallbackValue='Set Keyboard'}"
+                                Content="{Binding KeyboardBindingDisplayResolved, Mode=OneWay, FallbackValue='Set Keyboard'}"
                                 IsEnabled="{Binding DataContext.IsCapturingJoystick, ElementName=SettingsRootGrid, Converter={StaticResource NegatedBooleanConverter}}" />
 
                             <Button
@@ -129,7 +155,7 @@
                                 HorizontalAlignment="Stretch"
                                 Command="{Binding DataContext.StartCaptureJoystickCommand, ElementName=SettingsRootGrid}"
                                 CommandParameter="{Binding}"
-                                Content="{Binding JoystickBindingDisplayResolved, FallbackValue='Set Joystick'}"
+                                Content="{Binding JoystickBindingDisplayResolved, Mode=OneWay, FallbackValue='Set Joystick'}"
                                 IsEnabled="{Binding DataContext.IsCapturingKeyboard, ElementName=SettingsRootGrid, Converter={StaticResource NegatedBooleanConverter}}" />
                         </Grid>
                     </DataTemplate>
@@ -137,7 +163,7 @@
             </ListView>
 
             <StackPanel
-                Grid.Row="6"
+                Grid.Row="7"
                 Margin="0,10,0,5"
                 HorizontalAlignment="Center"
                 Orientation="Vertical">
@@ -149,11 +175,12 @@
                     Margin="0,5,0,0"
                     Command="{Binding CancelCaptureCommand}"
                     Content="Cancel Capture"
-                    IsEnabled="{Binding CanCancelCapture}" />
+                    IsEnabled="{Binding CanCancelCapture}"
+                    Visibility="{Binding CanCancelCapture, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
 
             <StackPanel
-                Grid.Row="7"
+                Grid.Row="8"
                 Margin="0,10,0,0"
                 HorizontalAlignment="Right"
                 Orientation="Horizontal"
@@ -169,7 +196,7 @@
             </StackPanel>
 
             <StackPanel
-                Grid.Row="8"
+                Grid.Row="9"
                 Margin="0,20,0,0"
                 HorizontalAlignment="Right"
                 Orientation="Horizontal"
@@ -182,4 +209,5 @@
             </StackPanel>
         </Grid>
     </Grid>
+
 </Window>

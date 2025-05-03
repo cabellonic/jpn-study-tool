@@ -20,7 +20,8 @@ public class SettingsService
 
         _serializerOptions = new JsonSerializerOptions
         {
-            WriteIndented = true
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
         System.Diagnostics.Debug.WriteLine($"[SettingsService] Config file path: {_settingsFilePath}");
@@ -28,6 +29,7 @@ public class SettingsService
 
     public AppSettings LoadSettings()
     {
+        AppSettings? settings = null;
         try
         {
             if (File.Exists(_settingsFilePath))
@@ -35,17 +37,7 @@ public class SettingsService
                 string json = File.ReadAllText(_settingsFilePath);
                 if (!string.IsNullOrWhiteSpace(json))
                 {
-                    var settings = JsonSerializer.Deserialize<AppSettings>(json);
-                    if (settings != null)
-                    {
-                        settings.GlobalJoystickBindings ??= new Dictionary<string, string?>();
-                        settings.GlobalKeyboardBindings ??= new Dictionary<string, string?>();
-                        settings.LocalJoystickBindings ??= new Dictionary<string, string?>();
-                        settings.LocalKeyboardBindings ??= new Dictionary<string, string?>();
-                        System.Diagnostics.Debug.WriteLine("[SettingsService] Settings loaded successfully from file.");
-                        return settings;
-                    }
-                    System.Diagnostics.Debug.WriteLine("[SettingsService] Settings file deserialized to null. Using defaults.");
+                    settings = JsonSerializer.Deserialize<AppSettings>(json);
                 }
                 else { System.Diagnostics.Debug.WriteLine("[SettingsService] Settings file was empty. Using defaults."); }
             }
@@ -54,11 +46,18 @@ public class SettingsService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SettingsService] Error loading/deserializing settings: {ex.Message}. Using defaults.");
-            if (ex is JsonException) { try { File.Delete(_settingsFilePath); } catch { } }
+            if (ex is JsonException) { try { File.Delete(_settingsFilePath); System.Diagnostics.Debug.WriteLine("[SettingsService] Deleted potentially corrupted settings file."); } catch { } }
         }
 
-        System.Diagnostics.Debug.WriteLine("[SettingsService] Returning default settings.");
-        return GetDefaultSettings();
+        settings ??= GetDefaultSettings();
+
+        settings.GlobalJoystickBindings ??= GetDefaultSettings().GlobalJoystickBindings;
+        settings.GlobalKeyboardBindings ??= GetDefaultSettings().GlobalKeyboardBindings;
+        settings.LocalJoystickBindings ??= GetDefaultSettings().LocalJoystickBindings;
+        settings.LocalKeyboardBindings ??= GetDefaultSettings().LocalKeyboardBindings;
+
+        System.Diagnostics.Debug.WriteLine($"[SettingsService] Settings loaded. UseAIMode: {settings.UseAIMode}, HasApiKey: {!string.IsNullOrEmpty(settings.GeminiApiKey)}");
+        return settings;
     }
 
     public void SaveSettings(AppSettings settings)
@@ -67,6 +66,8 @@ public class SettingsService
         {
             settings.GlobalJoystickBindings ??= new Dictionary<string, string?>();
             settings.GlobalKeyboardBindings ??= new Dictionary<string, string?>();
+            settings.LocalJoystickBindings ??= new Dictionary<string, string?>();
+            settings.LocalKeyboardBindings ??= new Dictionary<string, string?>();
 
             string json = JsonSerializer.Serialize(settings, _serializerOptions);
             File.WriteAllText(_settingsFilePath, json);
@@ -128,8 +129,9 @@ public class SettingsService
                 { "DETAIL_BACK", "Back" },
                 { "SAVE_WORD", "Ctrl+S" },
                 { "DELETE_WORD", "Delete" }
-            }
-
+            },
+            UseAIMode = false,
+            GeminiApiKey = null
         };
         return defaultSettings;
     }
