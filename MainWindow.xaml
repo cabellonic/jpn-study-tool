@@ -15,7 +15,7 @@
         <Grid
             x:Name="ListViewContentGrid"
             Margin="10"
-            Visibility="Visible">
+            Visibility="{Binding CurrentViewInternal, Converter={StaticResource StringEqualsTriggerConverter}, ConverterParameter=list}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -58,10 +58,12 @@
         <Grid
             x:Name="DetailViewContentGrid"
             Margin="10"
-            Visibility="Collapsed">
+            Visibility="{Binding CurrentViewInternal, Converter={StaticResource StringEqualsTriggerConverter}, ConverterParameter=detail}">
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="3*" MaxHeight="250" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="7*" />
             </Grid.RowDefinitions>
 
@@ -72,7 +74,6 @@
                     Height="0"
                     IsTabStop="True"
                     TabIndex="0" />
-
                 <controls:WebView2
                     x:Name="SentenceWebView"
                     Margin="0,0,0,10"
@@ -80,101 +81,53 @@
                     IsHitTestVisible="False"
                     Source="about:blank"
                     TabIndex="1" />
+                <ProgressRing
+                    Width="50"
+                    Height="50"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsActive="{Binding IsAnalyzingData}"
+                    Visibility="{Binding IsAnalyzingData, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
             </Grid>
 
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="7*" />
-                    <ColumnDefinition Width="3*" />
-                </Grid.ColumnDefinitions>
+            <TextBlock
+                Grid.Row="1"
+                Margin="5,0,5,5"
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                Text="{Binding ApiErrorMessage}"
+                TextWrapping="Wrap"
+                Visibility="{Binding ApiErrorMessage, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
 
+            <StackPanel
+                Grid.Row="2"
+                Margin="0,0,5,5"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal"
+                Visibility="{Binding CurrentSentenceAIAnalysis, Converter={StaticResource NullToVisibilityConverter}}">
+                <Button
+                    Padding="8,4"
+                    Command="{Binding CopyAIAnalysisCommand}"
+                    Content="Copy AI Analysis"
+                    FontSize="12"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+            </StackPanel>
+
+            <Grid Grid.Row="3">
                 <controls:WebView2
                     x:Name="DefinitionWebView"
-                    Grid.Column="0"
-                    Margin="0,0,10,0"
+                    Margin="0,0,0,0"
                     CoreWebView2Initialized="DefinitionWebView_CoreWebView2Initialized"
                     IsHitTestVisible="False"
                     Source="about:blank"
                     TabIndex="2" />
-
-                <ScrollViewer
-                    Grid.Column="1"
-                    HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10,0,0,0" Visibility="{Binding SelectedToken, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock
-                            Margin="0,0,0,5"
-                            Style="{ThemeResource SubtitleTextBlockStyle}"
-                            Text="Token Info:" />
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" MinWidth="80" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock
-                                Grid.Row="0"
-                                Grid.Column="0"
-                                FontWeight="SemiBold"
-                                Text="PoS:" />
-                            <TextBlock
-                                Grid.Row="0"
-                                Grid.Column="1"
-                                Text="{Binding SelectedToken.PartOfSpeech, FallbackValue='-'}"
-                                TextWrapping="Wrap" />
-                            <TextBlock
-                                Grid.Row="1"
-                                Grid.Column="0"
-                                FontWeight="SemiBold"
-                                Text="Subcat 1:" />
-                            <TextBlock
-                                Grid.Row="1"
-                                Grid.Column="1"
-                                Text="{Binding SelectedToken.POSSubcategory1, FallbackValue='-'}"
-                                TextWrapping="Wrap" />
-                            <TextBlock
-                                Grid.Row="2"
-                                Grid.Column="0"
-                                FontWeight="SemiBold"
-                                Text="Subcat 2:" />
-                            <TextBlock
-                                Grid.Row="2"
-                                Grid.Column="1"
-                                Text="{Binding SelectedToken.POSSubcategory2, FallbackValue='-'}"
-                                TextWrapping="Wrap" />
-                            <TextBlock
-                                Grid.Row="3"
-                                Grid.Column="0"
-                                FontWeight="SemiBold"
-                                Text="Conj. Type:" />
-                            <TextBlock
-                                Grid.Row="3"
-                                Grid.Column="1"
-                                Text="{Binding SelectedToken.ConjugationType, FallbackValue='-'}"
-                                TextWrapping="Wrap" />
-                            <TextBlock
-                                Grid.Row="4"
-                                Grid.Column="0"
-                                FontWeight="SemiBold"
-                                Text="Conj. Form:" />
-                            <TextBlock
-                                Grid.Row="4"
-                                Grid.Column="1"
-                                Text="{Binding SelectedToken.ConjugationForm, FallbackValue='-'}"
-                                TextWrapping="Wrap" />
-                        </Grid>
-                    </StackPanel>
-                </ScrollViewer>
-
+                <ProgressRing
+                    Width="40"
+                    Height="40"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsActive="{Binding IsLoadingDefinition}"
+                    Visibility="{Binding IsLoadingDefinition, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </Grid>
-
         </Grid>
-
     </Grid>
 </Window>

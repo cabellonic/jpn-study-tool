@@ -2,8 +2,6 @@
 using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Foundation;
-using System.Text.RegularExpressions;
 
 namespace JpnStudyTool.Services;
 
@@ -14,6 +12,7 @@ public class ClipboardService
     private string _lastClipboardText = string.Empty;
     private bool _isMonitoring = false;
     private bool _readClipboardOnLoad = false;
+    private const string IgnorePrefix = "[JST_IGNORE]";
 
     public void StartMonitoring()
     {
@@ -47,8 +46,9 @@ public class ClipboardService
             DataPackageView content = Clipboard.GetContent();
             if (content == null) return;
             if (!content.Contains(StandardDataFormats.Text)) return;
-       
+
             string text = await content.GetTextAsync();
+            if (text.StartsWith(IgnorePrefix)) return;
             text = text.Replace("\r", "").Replace("\n", " ").Trim();
             if (string.IsNullOrWhiteSpace(text)) return;
             if (text == _lastClipboardText) return;
@@ -57,15 +57,27 @@ public class ClipboardService
             _lastClipboardText = text;
             System.Diagnostics.Debug.WriteLine($"[ClipboardService] Content changed: {text.Substring(0, Math.Min(50, text.Length))}...");
             System.Diagnostics.Debug.WriteLine($"[ClipboardService] Japanese text detected!");
-            // Throw event to notify ViewModel
             JapaneseTextCopied?.Invoke(this, text);
-            
+
         }
         catch (Exception ex)
         {
-            // Reset last clipboard text on error
             System.Diagnostics.Debug.WriteLine($"[ClipboardService] Error accessing clipboard: {ex.Message}");
             _lastClipboardText = string.Empty;
+        }
+    }
+    public static void SetClipboardTextWithIgnore(string text)
+    {
+        try
+        {
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(IgnorePrefix + text);
+            Clipboard.SetContent(dataPackage);
+            Clipboard.Flush();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ClipboardService] Error setting clipboard text: {ex.Message}");
         }
     }
 }
