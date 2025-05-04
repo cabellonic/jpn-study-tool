@@ -154,22 +154,29 @@ public class AIService
         sb.AppendLine($"'{sentence}'");
         sb.AppendLine();
         sb.AppendLine($"Instructions:");
-        sb.AppendLine($"1. Provide a full translation of the sentence into '{targetLanguage}'.");
-        sb.AppendLine($"2. Tokenize the sentence into grammatical units (words, particles, punctuation).");
-        sb.AppendLine($"   - DO NOT split standard conjugated forms (e.g., '弱り切った' is one token, '立ち直らせる' is one token).");
-        sb.AppendLine($"   - Treat particles (like は, を, に, で, た) correctly, often as separate tokens unless part of a fixed expression.");
-        sb.AppendLine($"   - Preserve ALL original characters, including punctuation (like 、 。 「 」), in the 'surface' field of the tokens.");
-        sb.AppendLine($"3. For EACH token, provide:");
-        sb.AppendLine($"   - 'surface': The exact text, including original punctuation.");
-        sb.AppendLine($"   - 'reading': The most likely hiragana reading. For punctuation, use the surface character.");
-        sb.AppendLine($"   - 'contextualMeaning': A concise definition of the token *in the specific context of this sentence*, written in '{targetLanguage}'. For punctuation, identify it (e.g., 'comma', 'period', 'opening quote').");
-        sb.AppendLine($"     * If the 'surface' form is a conjugated/inflected form of a verb or adjective (different from 'baseForm'), ADDITIONALLY explain the grammatical modification (e.g., 'past tense', 'potential form', 'te-form', 'causative form') within this 'contextualMeaning'. Example for '食べた': 'Eat (past tense)'.");
-        sb.AppendLine($"   - 'partOfSpeech': The grammatical part of speech (e.g., Noun, Verb-Ichidan, Adjective-i, Particle-Case, Punctuation, Symbol). Be specific.");
-        sb.AppendLine($"   - 'baseForm': The dictionary/lemma form. For punctuation, use the surface character.");
-        sb.AppendLine($"   - 'startIndex': The starting character index in the original sentence (0-based).");
-        sb.AppendLine($"   - 'endIndex': The ending character index (exclusive) in the original sentence. Ensure spans are contiguous and cover the entire sentence.");
+        sb.AppendLine($"1. Provide a complete and accurate translation of the sentence into {targetLanguage}, maintaining the original tone and style as much as possible.");
+        sb.AppendLine($"2. Tokenize the sentence into **meaningful functional units**. **Strongly prioritize keeping verb/adjective conjugations, compound expressions (including preceding modifying phrases), and common concluding grammatical patterns (e.g., 'なのだろう', 'かもしれない', '〜てほしい') as SINGLE tokens.** Only split at clear grammatical boundaries where components function independently (like standalone particles), unless part of a fixed phrase."); // Added more examples and emphasis
+        sb.AppendLine($"3. For EACH token identified in step 2, provide ONLY the following information:");
+        sb.AppendLine($"   - 'surface': The exact text of the token (including punctuation).");
+        sb.AppendLine($"   - 'reading': The most likely hiragana reading **for the entire 'surface' text**. Ensure the reading covers all characters in the surface. For punctuation, use the same character.");
+        sb.AppendLine($"   - 'contextualMeaning': A concise explanation in {targetLanguage} of **what this specific token means and its function/nuance in the context of the sentence**. If it's a conjugated form or grammatical pattern, explain the combined meaning (e.g., '... (probably is the reason)', '... (state of being)'). Focus on clarity over excessive grammatical jargon."); // Adjusted nuance expectation
+        sb.AppendLine($"   - 'startIndex': The starting character index (0-indexed).");
+        sb.AppendLine($"   - 'endIndex': The ending character index (exclusive, 0-indexed). Ensure spans are contiguous.");
         sb.AppendLine();
-        sb.AppendLine($"Output ONLY the valid JSON object conforming to the schema. No extra text.");
+        sb.AppendLine($"Example format for token analysis (Pay close attention to grouping and full readings):");
+        sb.AppendLine();
+        sb.AppendLine($"根底から腐れ果ててしまっている [こんていからくされはててしまっている]");
+        sb.AppendLine($"\"Has completely rotted away from the base (and remains so...)\". Describes the state and origin of the decay.");
+        sb.AppendLine();
+        sb.AppendLine($"なのだろう [なのだろう]");
+        sb.AppendLine($"\"Probably is because...\" / \"I suppose it's due to...\". Concludes the sentence with an explanatory and speculative nuance.");
+        sb.AppendLine();
+        sb.AppendLine($"(etc.)");
+        sb.AppendLine();
+        sb.AppendLine($"Return ONLY a valid JSON object conforming to the following schema (note: 'partOfSpeech' and 'baseForm' are not required from you and might be null/empty in the final JSON, focus on providing the other fields accurately based on the functional tokenization):");
+        sb.AppendLine($"{{ResponseSchemaJson}}");
+        sb.AppendLine();
+        sb.AppendLine($"Do not include any additional text.");
 
         return sb.ToString();
     }
