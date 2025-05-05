@@ -15,11 +15,12 @@ internal class KeyboardHotkeyService : IDisposable
     private HWND _hwnd;
     private readonly Dictionary<string, Action> _actions;
     private readonly Dictionary<int, string> _registeredHotkeys;
+    private static int _nextHotkeyId = 1;
 
     public KeyboardHotkeyService(HWND windowHandle)
     {
         if (windowHandle == HWND.Null)
-            throw new ArgumentNullException(nameof(windowHandle), "Window handle cannot be null.");
+            throw new ArgumentNullException(nameof(windowHandle), "Window handle cannot be null for KeyboardHotkeyService.");
 
         _hwnd = windowHandle;
         _actions = new Dictionary<string, Action>
@@ -28,21 +29,20 @@ internal class KeyboardHotkeyService : IDisposable
             { "GLOBAL_MENU", App.RequestToggleMenu }
         };
         _registeredHotkeys = new Dictionary<int, string>();
-        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Instance created for HWND {_hwnd}. Subclassing handled by App.");
+        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Instance created for HWND {_hwnd}.");
     }
 
     public void RegisterHotkeys(Dictionary<string, string?>? keyboardBindings)
     {
         UnregisterAllHotkeys();
 
-        if (keyboardBindings == null || _hwnd == HWND.Null)
+        if (keyboardBindings == null || !keyboardBindings.Any() || _hwnd == HWND.Null)
         {
-            System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Skipping registration (Bindings null or HWND invalid).");
+            System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Skipping registration (No bindings, or HWND invalid).");
             return;
         }
 
         System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Registering hotkeys for HWND {_hwnd}...");
-        int currentHotkeyId = 1;
 
         foreach (var kvp in keyboardBindings)
         {
@@ -56,17 +56,31 @@ internal class KeyboardHotkeyService : IDisposable
 
             if (TryParseBinding(bindingString, out var modifiers, out var vk))
             {
-                bool success = PInvoke.RegisterHotKey(_hwnd, currentHotkeyId, modifiers, vk);
-                if (success)
+                int currentHotkeyId = _nextHotkeyId++;
+
+                System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Attempting RegisterHotKey: ID={currentHotkeyId}, Mod={modifiers}, VK={vk}, Action='{actionId}', Binding='{bindingString}'");
+                try
                 {
-                    System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Registered: ID={currentHotkeyId}, Mod={modifiers}, VK={vk} for Action='{actionId}'");
-                    _registeredHotkeys.Add(currentHotkeyId, actionId);
-                    currentHotkeyId++;
+                    bool success = PInvoke.RegisterHotKey(_hwnd, currentHotkeyId, modifiers, vk);
+
+                    if (success)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Registered successfully.");
+                        _registeredHotkeys.Add(currentHotkeyId, actionId);
+                    }
+                    else
+                    {
+                        int error = Marshal.GetLastPInvokeError();
+                        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] FAILED RegisterHotKey. Error: {error}" + (error == 1409 ? " (Hotkey already registered by another application?)" : ""));
+                    }
                 }
-                else
+                catch (ArgumentException argEx)
                 {
-                    int error = Marshal.GetLastPInvokeError();
-                    System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] FAILED RegisterHotKey: Mod={modifiers}, VK={vk}, Action='{actionId}'. Error: {error}");
+                    System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] CRITICAL ArgumentException during RegisterHotKey for Binding='{bindingString}'. VK={vk}, Mod={modifiers}. Exception: {argEx.Message}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] CRITICAL Exception during RegisterHotKey for Binding='{bindingString}'. Exception: {ex.GetType().Name} - {ex.Message}");
                 }
             }
             else
@@ -79,7 +93,7 @@ internal class KeyboardHotkeyService : IDisposable
 
     private bool TryParseBinding(string bindingString, out HOT_KEY_MODIFIERS modifiers, out uint vk)
     {
-        modifiers = 0;
+        modifiers = HOT_KEY_MODIFIERS.MOD_NOREPEAT;
         vk = 0;
 
         var parts = bindingString.Split('+').Select(p => p.Trim().ToUpperInvariant()).ToList();
@@ -91,16 +105,31 @@ internal class KeyboardHotkeyService : IDisposable
         if (parts.Contains("WIN")) { modifiers |= HOT_KEY_MODIFIERS.MOD_WIN; parts.Remove("WIN"); }
 
         string? keyPart = parts.LastOrDefault();
-        if (string.IsNullOrEmpty(keyPart)) return false;
+        if (string.IsNullOrEmpty(keyPart))
+        {
+            System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] No key part found in binding: '{bindingString}' after removing modifiers.");
+            return false;
+        }
+
 
         if (Enum.TryParse<VirtualKey>(keyPart, true, out VirtualKey virtualKey))
         {
+            if (virtualKey == VirtualKey.Control || virtualKey == VirtualKey.Shift || virtualKey == VirtualKey.Menu ||
+                virtualKey == VirtualKey.LeftControl || virtualKey == VirtualKey.RightControl ||
+                virtualKey == VirtualKey.LeftShift || virtualKey == VirtualKey.RightShift ||
+                virtualKey == VirtualKey.LeftMenu || virtualKey == VirtualKey.RightMenu ||
+                virtualKey == VirtualKey.LeftWindows || virtualKey == VirtualKey.RightWindows)
+            {
+                System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Invalid binding: Modifier key '{keyPart}' cannot be the main hotkey.");
+                return false;
+            }
+
             vk = (uint)virtualKey;
             return true;
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Could not parse key part: {keyPart}");
+            System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Could not parse key part: '{keyPart}' from binding: '{bindingString}'");
             return false;
         }
     }
@@ -131,24 +160,24 @@ internal class KeyboardHotkeyService : IDisposable
         if (_hwnd == HWND.Null || disposedValue || !_registeredHotkeys.Any()) return;
 
         System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Unregistering all hotkeys for HWND {_hwnd}...");
-        foreach (var kvp in _registeredHotkeys)
+        var hotkeyIds = _registeredHotkeys.Keys.ToList();
+        foreach (int hotkeyId in hotkeyIds)
         {
-            int hotkeyId = kvp.Key;
             if (!PInvoke.UnregisterHotKey(_hwnd, hotkeyId))
             {
                 int error = Marshal.GetLastPInvokeError();
-                if (error != 1401 && error != 1413)
+                if (error != 1413 && error != 1401)
                 {
                     System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Failed to unregister hotkey ID {hotkeyId}. Error: {error}");
                 }
             }
             else
             {
-                // System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Unregistered hotkey ID {hotkeyId}."); // Can be verbose
+                // System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Unregistered hotkey ID {hotkeyId}.");
             }
+            _registeredHotkeys.Remove(hotkeyId);
         }
-        _registeredHotkeys.Clear();
-        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Finished unregistering hotkeys.");
+        System.Diagnostics.Debug.WriteLine($"[KeyboardHotkeyService] Finished unregistering hotkeys. Count remaining: {_registeredHotkeys.Count}");
     }
 
     private bool disposedValue;

@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 namespace JpnStudyTool.Models;
 
+public enum AiAnalysisTrigger
+{
+    OnDemand,
+    OnCopy,
+    OnGlobalOpen
+}
+
 public class AppSettings
 {
     public bool ReadClipboardOnLoad { get; set; } = false;
@@ -17,6 +24,7 @@ public class AppSettings
     public Dictionary<string, string?> LocalKeyboardBindings { get; set; }
 
     public bool UseAIMode { get; set; } = false;
+    public AiAnalysisTrigger AiAnalysisTriggerMode { get; set; } = AiAnalysisTrigger.OnDemand;
     public string? GeminiApiKey { get; set; } = null;
 
     public AppSettings()

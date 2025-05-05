@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="JpnStudyTool.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,6 +7,7 @@
     xmlns:local="using:JpnStudyTool"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:JpnStudyTool.Models"
+    xmlns:sys="using:System"
     x:Name="RootWindow"
     mc:Ignorable="d">
 
@@ -19,6 +20,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid Grid.Row="0" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
@@ -46,13 +48,45 @@
                 TabIndex="0">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:SentenceHistoryItem">
-                        <TextBlock
-                            Margin="5"
-                            Text="{x:Bind Sentence}"
-                            TextTrimming="CharacterEllipsis" />
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Text="{x:Bind Sentence}"
+                                TextTrimming="CharacterEllipsis" />
+
+                            <ProgressRing
+                                Width="16"
+                                Height="16"
+                                Margin="5,0,0,0"
+                                VerticalAlignment="Center"
+                                Foreground="DodgerBlue"
+                                IsActive="True"
+                                ToolTipService.ToolTip="Analyzing with AI..."
+                                Visibility="{Binding IsAiAnalysisLoading, Converter={StaticResource BooleanToVisibilityConverter}, Mode=OneWay}" />
+
+                            <FontIcon
+                                Margin="5,0,0,0"
+                                VerticalAlignment="Center"
+                                FontFamily="Segoe MDL2 Assets"
+                                FontSize="12"
+                                Foreground="Green"
+                                Glyph="&#xE73E;"
+                                ToolTipService.ToolTip="AI analysis cached"
+                                Visibility="{Binding IsAiAnalysisCached, Converter={StaticResource BooleanToVisibilityConverter}, Mode=OneWay}" />
+
+                        </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            <TextBlock
+                Grid.Row="2"
+                Margin="0,5,5,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                FontSize="10"
+                Foreground="Gray"
+                Text="{x:Bind sys:String.Format('Tokens (Sesión): {0}', ViewModel.TotalSessionTokensUsed), Mode=OneWay, FallbackValue='Tokens (Sesión): 0'}"
+                Visibility="{Binding IsAIModeActive, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </Grid>
 
         <Grid
@@ -65,6 +99,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="7*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -87,7 +122,7 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     IsActive="{Binding IsAnalyzingData}"
-                    Visibility="{Binding IsAnalyzingData, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
+                    Visibility="{Binding IsAnalyzingData, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </Grid>
 
             <TextBlock
@@ -96,7 +131,7 @@
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                 Text="{Binding ApiErrorMessage}"
                 TextWrapping="Wrap"
-                Visibility="{Binding ApiErrorMessage, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
+                Visibility="{Binding ApiErrorMessage, Converter={StaticResource NullToVisibilityConverter}}" />
 
             <StackPanel
                 Grid.Row="2"
@@ -128,6 +163,15 @@
                     IsActive="{Binding IsLoadingDefinition}"
                     Visibility="{Binding IsLoadingDefinition, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </Grid>
+            <TextBlock
+                Grid.Row="4"
+                Margin="0,5,5,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                FontSize="10"
+                Foreground="Gray"
+                Text="{x:Bind sys:String.Format('Tokens (Sesión): {0}', ViewModel.TotalSessionTokensUsed), Mode=OneWay, FallbackValue='Tokens (Sesión): 0'}"
+                Visibility="{Binding IsAIModeActive, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </Grid>
     </Grid>
 </Window>

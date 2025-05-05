@@ -18,6 +18,7 @@
             <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <converters:KatakanaToHiraganaConverter x:Key="KatakanaToHiraganaConverter" />
+            <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
 
             <!--  Modernized global button style  -->
             <Style TargetType="Button">

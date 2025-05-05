@@ -1,4 +1,5 @@
-﻿using System;
+﻿// ViewModels/SettingsViewModel.cs
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,12 +22,17 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsApiKeyInputVisible))]
+    [NotifyPropertyChangedFor(nameof(IsAiAnalysisOptionsVisible))]
     private bool _useAIMode;
 
     [ObservableProperty]
     private string? _geminiApiKey;
 
+    [ObservableProperty]
+    private AiAnalysisTrigger _aiAnalysisTriggerMode;
+
     public bool IsApiKeyInputVisible => UseAIMode;
+    public bool IsAiAnalysisOptionsVisible => UseAIMode;
     public string ApiKeyWarningText => UseAIMode ? "API Key will be saved locally in configuration file." : string.Empty;
 
 
@@ -51,6 +57,8 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string? _captureStatusText;
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartCaptureJoystickCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetJoystickDefaultsCommand))]
     private bool _isGamepadConnected;
 
     [ObservableProperty]
@@ -81,13 +89,14 @@ public partial class SettingsViewModel : ObservableObject
         _readClipboardOnLoad = _loadedSettings.ReadClipboardOnLoad;
         _useAIMode = _loadedSettings.UseAIMode;
         _geminiApiKey = _loadedSettings.GeminiApiKey;
+        _aiAnalysisTriggerMode = _loadedSettings.AiAnalysisTriggerMode;
 
         PopulateBindingsCollection();
         ApplyLoadedBindings();
 
         _currentSelectedVid = _loadedSettings.SelectedGlobalGamepadVid;
         _currentSelectedPid = _loadedSettings.SelectedGlobalGamepadPid;
-        DetectAndSelectDefaultGamepad();
+
 
         StartCaptureKeyboardCommand = new RelayCommand<BindingConfig>(StartKeyboardCapture, CanStartCapture);
         StartCaptureJoystickCommand = new RelayCommand<BindingConfig>(StartJoystickCapture, CanStartJoystickCapture);
@@ -106,6 +115,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsApiKeyInputVisible));
         OnPropertyChanged(nameof(ApiKeyWarningText));
+        OnPropertyChanged(nameof(IsAiAnalysisOptionsVisible));
     }
 
 
@@ -141,24 +151,53 @@ public partial class SettingsViewModel : ObservableObject
 
     private void DetectAndSelectDefaultGamepad()
     {
-        HidDevice? selectedDevice = null; int? foundVid = null; int? foundPid = null;
+        HidDevice? selectedDevice = null;
+        int? foundVid = null;
+        int? foundPid = null;
         string detectedName = "No supported gamepad detected for hotkeys.";
         try
         {
             selectedDevice = DeviceList.Local.GetHidDeviceOrNull(vendorID: SettingsIDs.NINTENDO_VID, productID: SettingsIDs.PRO_CONTROLLER_PID_USB);
-            if (selectedDevice == null) { selectedDevice = DeviceList.Local.GetHidDeviceOrNull(vendorID: SettingsIDs.XBOX_VID, productID: SettingsIDs.XBOX_PID); }
+            if (selectedDevice == null)
+            {
+                selectedDevice = DeviceList.Local.GetHidDeviceOrNull(vendorID: SettingsIDs.XBOX_VID, productID: SettingsIDs.XBOX_PID);
+            }
+
             if (selectedDevice != null)
             {
-                foundVid = selectedDevice.VendorID; foundPid = selectedDevice.ProductID;
-                try { detectedName = $"{selectedDevice.GetProductName()} ({foundVid:X4}/{foundPid:X4})"; } catch { detectedName = $"Gamepad ({foundVid:X4}/{foundPid:X4})"; }
+                foundVid = selectedDevice.VendorID;
+                foundPid = selectedDevice.ProductID;
+                try { detectedName = $"{selectedDevice.GetProductName()} ({foundVid:X4}/{foundPid:X4})"; }
+                catch { detectedName = $"Gamepad ({foundVid:X4}/{foundPid:X4})"; }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SettingsVM] Error detecting gamepad: {ex.Message}");
+            detectedName = "Error detecting gamepad.";
+        }
 
-        if (!_currentSelectedVid.HasValue || !_currentSelectedPid.HasValue) { CurrentSelectedVid = foundVid; CurrentSelectedPid = foundPid; DetectedGamepadName = detectedName; }
-        else if (foundVid == _currentSelectedVid && foundPid == _currentSelectedPid) { DetectedGamepadName = detectedName; }
-        else if (foundVid.HasValue) { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: {detectedName}"; }
-        else { DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Detected: None"; }
+        if (!_currentSelectedVid.HasValue || !_currentSelectedPid.HasValue)
+        {
+            CurrentSelectedVid = foundVid;
+            CurrentSelectedPid = foundPid;
+            DetectedGamepadName = detectedName;
+        }
+        else
+        {
+            if (foundVid.HasValue && foundVid == _currentSelectedVid && foundPid == _currentSelectedPid)
+            {
+                DetectedGamepadName = detectedName;
+            }
+            else if (foundVid.HasValue)
+            {
+                DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Current: {detectedName}";
+            }
+            else
+            {
+                DetectedGamepadName = $"Saved: ({_currentSelectedVid:X4}/{_currentSelectedPid:X4}), Current: None";
+            }
+        }
     }
 
     private bool CanStartCapture(BindingConfig? binding) => binding != null && !IsCapturingKeyboard && !IsCapturingJoystick;
@@ -206,7 +245,24 @@ public partial class SettingsViewModel : ObservableObject
         CancelCapture();
     }
 
-    private string? MapGamepadButtonToInternalCode(object dataValue) => dataValue is GamepadButtons button ? button switch { GamepadButtons.A => "BTN_A", GamepadButtons.B => "BTN_B", GamepadButtons.X => "BTN_X", GamepadButtons.Y => "BTN_Y", GamepadButtons.LeftShoulder => "BTN_TL", GamepadButtons.RightShoulder => "BTN_TR", GamepadButtons.View => "BTN_SELECT", GamepadButtons.Menu => "BTN_START", GamepadButtons.LeftThumbstick => "BTN_THUMBL", GamepadButtons.RightThumbstick => "BTN_THUMBR", GamepadButtons.DPadUp => "DPAD_UP", GamepadButtons.DPadDown => "DPAD_DOWN", GamepadButtons.DPadLeft => "DPAD_LEFT", GamepadButtons.DPadRight => "DPAD_RIGHT", _ => null } : null;
+    private string? MapGamepadButtonToInternalCode(object dataValue) => dataValue is GamepadButtons button ? button switch
+    {
+        GamepadButtons.A => "BTN_A",
+        GamepadButtons.B => "BTN_B",
+        GamepadButtons.X => "BTN_X",
+        GamepadButtons.Y => "BTN_Y",
+        GamepadButtons.LeftShoulder => "BTN_TL",
+        GamepadButtons.RightShoulder => "BTN_TR",
+        GamepadButtons.View => "BTN_SELECT",
+        GamepadButtons.Menu => "BTN_START",
+        GamepadButtons.LeftThumbstick => "BTN_THUMBL",
+        GamepadButtons.RightThumbstick => "BTN_THUMBR",
+        GamepadButtons.DPadUp => "DPAD_UP",
+        GamepadButtons.DPadDown => "DPAD_DOWN",
+        GamepadButtons.DPadLeft => "DPAD_LEFT",
+        GamepadButtons.DPadRight => "DPAD_RIGHT",
+        _ => null
+    } : null;
 
     private void CancelCapture() { if (!CanCancelCapture) return; IsCapturingKeyboard = false; IsCapturingJoystick = false; BindingToCapture = null; CaptureStatusText = null; }
 
@@ -239,6 +295,7 @@ public partial class SettingsViewModel : ObservableObject
             ReadClipboardOnLoad = this.ReadClipboardOnLoad,
             UseAIMode = this.UseAIMode,
             GeminiApiKey = this.GeminiApiKey,
+            AiAnalysisTriggerMode = this.AiAnalysisTriggerMode,
             SelectedGlobalGamepadVid = this.CurrentSelectedVid,
             SelectedGlobalGamepadPid = this.CurrentSelectedPid,
             GlobalJoystickBindings = new(),
@@ -266,13 +323,25 @@ public partial class SettingsViewModel : ObservableObject
         if (currentlyConnected != IsGamepadConnected)
         {
             IsGamepadConnected = currentlyConnected;
-            _dispatcherQueue?.TryEnqueue(() => { (StartCaptureJoystickCommand as RelayCommand<BindingConfig>)?.NotifyCanExecuteChanged(); (ResetJoystickDefaultsCommand as RelayCommand)?.NotifyCanExecuteChanged(); DetectAndSelectDefaultGamepad(); });
+            _dispatcherQueue?.TryEnqueue(() =>
+            {
+                DetectAndSelectDefaultGamepad();
+                (StartCaptureJoystickCommand as RelayCommand<BindingConfig>)?.NotifyCanExecuteChanged();
+                (ResetJoystickDefaultsCommand as RelayCommand)?.NotifyCanExecuteChanged();
+            });
+        }
+        else if (IsGamepadConnected)
+        {
+            DetectAndSelectDefaultGamepad();
         }
     }
 
-    private void OnGamepadAddedOrRemoved(object? sender, object e) => _dispatcherQueue?.TryEnqueue(UpdateGamepadStatus);
+    private void OnGamepadAddedOrRemoved(object? sender, object e) => UpdateGamepadStatus();
+
+    partial void OnAiAnalysisTriggerModeChanged(AiAnalysisTrigger value)
+    {
+        System.Diagnostics.Debug.WriteLine($"[SettingsVM] OnAiAnalysisTriggerModeChanged called with value: {value}");
+    }
 
     public void CleanupOnClose() { Gamepad.GamepadAdded -= OnGamepadAddedOrRemoved; Gamepad.GamepadRemoved -= OnGamepadAddedOrRemoved; }
 }
-
-public static class SettingsIDs { public const int NINTENDO_VID = 0x057E; public const int PRO_CONTROLLER_PID_USB = 0x2009; public const int XBOX_VID = 0x045E; public const int XBOX_PID = 0x028E; }

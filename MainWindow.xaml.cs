@@ -58,7 +58,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         ViewModel = new MainWindowViewModel();
         ViewModel.RequestLoadDefinitionHtml += ViewModel_RequestLoadDefinitionHtml;
-        ViewModel.RequestRenderSentenceWebView += ViewModel_RequestRenderSentenceWebView; // Corregido a List
+        ViewModel.RequestRenderSentenceWebView += ViewModel_RequestRenderSentenceWebView;
         ViewModel.RequestUpdateDefinitionTokenDetails += ViewModel_RequestUpdateDefinitionTokenDetails;
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -70,7 +70,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private async Task ViewModel_RequestLoadDefinitionHtml(string? fullHtmlContent) { await LoadDefinitionHtmlAsync(fullHtmlContent); }
-    private async Task ViewModel_RequestRenderSentenceWebView(List<DisplayToken> displayTokens) { await LoadSentenceDataAsync(displayTokens); } // Corregido a List
+    private async Task ViewModel_RequestRenderSentenceWebView(List<DisplayToken> displayTokens) { await LoadSentenceDataAsync(displayTokens); }
     private async Task ViewModel_RequestUpdateDefinitionTokenDetails(string tokenDetailHtml) { await UpdateDefinitionTokenDetailsAsync(tokenDetailHtml); }
 
     private async void SentenceWebView_CoreWebView2Initialized(WebView2 sender, CoreWebView2InitializedEventArgs args) { if (args.Exception != null) { _isSentenceWebViewReady = false; return; } _isSentenceWebViewReady = true; if (sender.CoreWebView2 != null) { sender.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false; sender.CoreWebView2.Settings.AreDevToolsEnabled = true; sender.CoreWebView2.Settings.IsStatusBarEnabled = false; } else { _isSentenceWebViewReady = false; return; } }
@@ -95,7 +95,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateViewVisibilityUI(string? currentView) { if (currentView == "list") { ListViewContentGrid.Visibility = Visibility.Visible; DetailViewContentGrid.Visibility = Visibility.Collapsed; SentenceWebView.Visibility = Visibility.Collapsed; DefinitionWebView.Visibility = Visibility.Collapsed; TrySetFocusToListOrRoot(); } else if (currentView == "detail") { ListViewContentGrid.Visibility = Visibility.Collapsed; DetailViewContentGrid.Visibility = Visibility.Visible; DispatcherQueue.TryEnqueue(() => SentenceFocusAnchor.Focus(FocusState.Programmatic)); } else { ListViewContentGrid.Visibility = Visibility.Visible; DetailViewContentGrid.Visibility = Visibility.Collapsed; SentenceWebView.Visibility = Visibility.Collapsed; DefinitionWebView.Visibility = Visibility.Collapsed; } }
     private async Task ClearWebViewsAsync() { if (_isSentenceWebViewReady && SentenceWebView.CoreWebView2 != null) { try { SentenceWebView.CoreWebView2.Navigate("about:blank"); } catch { } } if (_isDefinitionWebViewReady && DefinitionWebView.CoreWebView2 != null) { try { DefinitionWebView.CoreWebView2.Navigate("about:blank"); } catch { } } SentenceWebView.Visibility = Visibility.Collapsed; DefinitionWebView.Visibility = Visibility.Collapsed; await Task.CompletedTask; }
 
-    private async Task LoadSentenceDataAsync(List<DisplayToken> displayTokens) // Corregido a List
+    private async Task LoadSentenceDataAsync(List<DisplayToken> displayTokens)
     {
         SentenceWebView.Visibility = Visibility.Collapsed; if (!_isSentenceWebViewReady || SentenceWebView.CoreWebView2 == null) { return; }
         if (displayTokens == null || !displayTokens.Any()) { SentenceWebView.CoreWebView2.Navigate("about:blank"); return; }
@@ -115,11 +115,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         try { navigationCompletedHandlerDef = (s, a) => { if (DefinitionWebView?.CoreWebView2 != null) DefinitionWebView.CoreWebView2.NavigationCompleted -= navigationCompletedHandlerDef; navigationCompletedTcsDef.TrySetResult(a.IsSuccess); }; try { DefinitionWebView.CoreWebView2.NavigationCompleted -= navigationCompletedHandlerDef; } catch { } DefinitionWebView.CoreWebView2.NavigationCompleted += navigationCompletedHandlerDef; DefinitionWebView.CoreWebView2.NavigateToString(fullDefinitionHtml); bool navigationSuccessDef = await navigationCompletedTcsDef.Task; if (navigationSuccessDef) { string scriptInitNav = "initializeNavigation()"; string result = "0"; try { result = await DefinitionWebView.CoreWebView2.ExecuteScriptAsync(scriptInitNav); } catch { } if (!string.IsNullOrEmpty(result) && result != "null" && int.TryParse(result, out int count)) { _definitionLiCount = count; } else { _definitionLiCount = 0; } _currentDefinitionLiIndex = -1; DefinitionWebView.Visibility = Visibility.Visible; } else { DefinitionWebView.Visibility = Visibility.Collapsed; } } catch (Exception) { DefinitionWebView.Visibility = Visibility.Collapsed; navigationCompletedTcsDef.TrySetResult(false); }
     }
 
-    private async Task UpdateDefinitionTokenDetailsAsync(string tokenDetailHtmlSnippet) // Re-added
+    private async Task UpdateDefinitionTokenDetailsAsync(string tokenDetailHtmlSnippet)
     {
         if (!_isDefinitionWebViewReady || DefinitionWebView.CoreWebView2 == null) return; string escapedSnippet = JsonSerializer.Serialize(tokenDetailHtmlSnippet); string script = $"updateTokenDetails({escapedSnippet});";
         try { await DefinitionWebView.CoreWebView2.ExecuteScriptAsync(script); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WebView2 Definition] Error executing token update script: {ex.Message}"); ViewModel.ForceFullDefinitionReload(); await ViewModel.UpdateDefinitionViewAsync(); } // Fallback call
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[WebView2 Definition] Error executing token update script: {ex.Message}"); ViewModel.ForceFullDefinitionReload(); await ViewModel.UpdateDefinitionViewAsync(); }
     }
 
     private async Task HighlightTokenInWebViewAsync(int displayTokenIndex) { if (!_isSentenceWebViewReady || SentenceWebView.CoreWebView2 == null) return; string targetTokenId = $"token-{displayTokenIndex}"; if (displayTokenIndex < 0 || displayTokenIndex >= ViewModel.DisplayTokens.Count) { targetTokenId = "null"; } try { await SentenceWebView.CoreWebView2.ExecuteScriptAsync($"highlightToken('{targetTokenId}', '{ViewModel.DetailFocusTarget}');"); } catch { } }
@@ -141,7 +141,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private void HistoryListView_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (sender is ListView { SelectedItem: not null } lv) { DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { if (lv.SelectedItem != null) lv.ScrollIntoView(lv.SelectedItem); }); } }
     private void MainWindow_Closed(object sender, WindowEventArgs args) { _highlightThrottleTimer?.Stop(); if (ViewModel != null) { ViewModel.PropertyChanged -= ViewModel_PropertyChanged; ViewModel.RequestLoadDefinitionHtml -= ViewModel_RequestLoadDefinitionHtml; ViewModel.RequestRenderSentenceWebView -= ViewModel_RequestRenderSentenceWebView; ViewModel.RequestUpdateDefinitionTokenDetails -= ViewModel_RequestUpdateDefinitionTokenDetails; ViewModel.Cleanup(); } PauseLocalPolling(); Gamepad.GamepadAdded -= Gamepad_GamepadAdded; Gamepad.GamepadRemoved -= Gamepad_GamepadRemoved; SentenceWebView?.Close(); DefinitionWebView?.Close(); _localGamepad = null; _gamepadPollingTimer = null; }
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettingsWindow();
-    private void SettingsWindow_Instance_Closed(object sender, WindowEventArgs args) { if (sender is SettingsWindow closedWindow) { closedWindow.Closed -= SettingsWindow_Instance_Closed; } _settingsWindowInstance = null; ViewModel?.LoadCurrentSettings(); ViewModel?.ForceFullDefinitionReload(); ResumeLocalPolling(); TrySetFocusToListOrRoot(); } // Corregido
+    private void SettingsWindow_Instance_Closed(object sender, WindowEventArgs args) { if (sender is SettingsWindow closedWindow) { closedWindow.Closed -= SettingsWindow_Instance_Closed; } _settingsWindowInstance = null; ViewModel?.LoadCurrentSettings(); ViewModel?.ForceFullDefinitionReload(); ResumeLocalPolling(); TrySetFocusToListOrRoot(); }
     private void TrySetFocusToListOrRoot() { DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { bool fs = HistoryListView.Focus(FocusState.Programmatic); if (!fs && this.Content is FrameworkElement root) { fs = root.Focus(FocusState.Programmatic); } }); }
     public void UpdateLocalBindings(AppSettings settings) { _currentSettings = settings ?? new AppSettings(); _localKeyToActionId.Clear(); _localButtonToActionId.Clear(); if (_currentSettings.LocalKeyboardBindings != null) { foreach (var kvp in _currentSettings.LocalKeyboardBindings) { if (!string.IsNullOrEmpty(kvp.Value) && Enum.TryParse<VirtualKey>(kvp.Value, true, out var vk)) { _localKeyToActionId[vk] = kvp.Key; } } } if (_currentSettings.LocalJoystickBindings != null) { foreach (var kvp in _currentSettings.LocalJoystickBindings) { string actionId = kvp.Key; string? buttonCode = kvp.Value; if (!string.IsNullOrEmpty(buttonCode)) { GamepadButtons? buttonEnum = MapInternalCodeToGamepadButton(buttonCode); if (buttonEnum.HasValue) { _localButtonToActionId[buttonEnum.Value] = actionId; } } } } reset_navigation_state(); }
     public void ToggleVisibility() => DispatcherQueue?.TryEnqueue(() => _windowActivationService?.ToggleMainWindowVisibility());
