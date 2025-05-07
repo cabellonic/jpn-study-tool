@@ -34,23 +34,12 @@ namespace JpnStudyTool.Services
         {
             System.Diagnostics.Debug.WriteLine("[SessionManager] Initializing...");
             _freeSessionId = await _dbService.GetOrCreateFreeSessionAsync();
-            await _dbService.ClearActiveSessionMarkerAsync();
 
-            string? lastActiveId = _currentAppSettings.ActiveSessionId;
+            _activeSessionId = null;
+            _currentAppSettings.ActiveSessionId = null;
+            _settingsService.SaveSettings(_currentAppSettings);
 
-            if (!string.IsNullOrEmpty(lastActiveId))
-            {
-                _activeSessionId = lastActiveId;
-                await SetActiveSessionAsync(_activeSessionId);
-                System.Diagnostics.Debug.WriteLine($"[SessionManager] Resumed last active session: {lastActiveId}");
-            }
-            else
-            {
-                _activeSessionId = _freeSessionId;
-                await SetActiveSessionAsync(_activeSessionId);
-                System.Diagnostics.Debug.WriteLine($"[SessionManager] Started default Free Session: {_activeSessionId}");
-            }
-            System.Diagnostics.Debug.WriteLine("[SessionManager] Initialization complete.");
+            System.Diagnostics.Debug.WriteLine($"[SessionManager] Initialization complete. No session auto-started. Free Session ID: {_freeSessionId}");
         }
 
         public async Task SetActiveSessionAsync(string sessionId)
@@ -78,10 +67,11 @@ namespace JpnStudyTool.Services
                 System.Diagnostics.Debug.WriteLine($"[SessionManager] Session {sessionId} is already active.");
                 return;
             }
-            System.Diagnostics.Debug.WriteLine($"[SessionManager] Starting existing session: {sessionId}");
+            System.Diagnostics.Debug.WriteLine($"[SessionManager StartExistingSessionAsync] Starting existing session: {sessionId}");
 
             if (!string.IsNullOrEmpty(_activeSessionId))
             {
+                System.Diagnostics.Debug.WriteLine($"[SessionManager StartExistingSessionAsync] Ending previously active session: {_activeSessionId}");
                 await _dbService.EndSessionAsync(_activeSessionId);
             }
 
@@ -89,6 +79,7 @@ namespace JpnStudyTool.Services
 
             _currentAppSettings.ActiveSessionId = _activeSessionId;
             _settingsService.SaveSettings(_currentAppSettings);
+            System.Diagnostics.Debug.WriteLine($"[SessionManager StartExistingSessionAsync] Session {sessionId} started and saved to settings.");
         }
 
         public async Task<string> CreateAndStartNewSessionAsync(string? name, string? imagePath)
@@ -144,21 +135,11 @@ namespace JpnStudyTool.Services
             {
                 System.Diagnostics.Debug.WriteLine($"[SessionManager] Ending session on app close: {_activeSessionId}");
                 await _dbService.EndSessionAsync(_activeSessionId);
-
-                _currentAppSettings.ActiveSessionId = _activeSessionId;
-                _settingsService.SaveSettings(_currentAppSettings);
-                System.Diagnostics.Debug.WriteLine($"[SessionManager] Saved last active session ID to settings: {_activeSessionId}");
-                _activeSessionId = null;
             }
-            else
-            {
-                if (_currentAppSettings.ActiveSessionId != null)
-                {
-                    _currentAppSettings.ActiveSessionId = null;
-                    _settingsService.SaveSettings(_currentAppSettings);
-                    System.Diagnostics.Debug.WriteLine($"[SessionManager] Cleared last active session ID from settings on close.");
-                }
-            }
+            _currentAppSettings.ActiveSessionId = null;
+            _settingsService.SaveSettings(_currentAppSettings);
+            System.Diagnostics.Debug.WriteLine($"[SessionManager] Cleared ActiveSessionId in settings for app close.");
+            _activeSessionId = null;
         }
 
         public async Task AddSentenceToCurrentSessionAsync(string sentence)

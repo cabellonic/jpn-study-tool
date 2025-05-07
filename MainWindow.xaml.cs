@@ -122,17 +122,24 @@ namespace JpnStudyTool
 
         public void NavigateToHub()
         {
-            if (contentFrame == null) return;
-            if (contentFrame.CurrentSourcePageType != typeof(MainHubPage))
-            { contentFrame.Navigate(typeof(MainHubPage)); }
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Navigated to Hub");
-            TrySetFocusToListOrRoot();
+            if (contentFrame == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[MainWindow NavigateToHub] Error: contentFrame is null.");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[MainWindow NavigateToHub] CurrentSourcePageType: {contentFrame.CurrentSourcePageType?.Name ?? "null"}, Target: {nameof(MainHubPage)}");
+
+            contentFrame.Navigate(typeof(MainHubPage), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+
+            System.Diagnostics.Debug.WriteLine("[MainWindow NavigateToHub] Navigation call made to MainHubPage.");
         }
 
         public async Task NavigateToSessionViewAsync()
         {
             if (contentFrame == null) return;
             await ViewModel.LoadCurrentSessionDataAsync();
+            ViewModel.IsHubViewActive = false;
             System.Diagnostics.Debug.WriteLine("[MainWindow] Navigated TO Session View (List)");
             TrySetFocusToListOrRoot();
         }

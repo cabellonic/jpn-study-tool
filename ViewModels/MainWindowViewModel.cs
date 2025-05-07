@@ -292,11 +292,9 @@ namespace JpnStudyTool.ViewModels
         private async Task NavigateBackToHubAsync()
         {
             if (IsHubViewActive) return;
-            await _sessionManager.EndCurrentSessionAsync();
             await DispatcherQueue_EnqueueAsync(() =>
             {
                 IsHubViewActive = true; IsDetailViewActive = false;
-                CurrentSessionEntries.Clear(); SelectedSentenceIndex = -1; SelectedSentenceItem = null;
                 DetailedSentenceEntry = null; DisplayTokens.Clear(); SelectedToken = null;
                 SelectedTokenIndex = -1; ApiErrorMessage = null; CurrentSentenceAIAnalysis = null;
                 System.Diagnostics.Debug.WriteLine("[MWVM] State reset for returning to Hub.");

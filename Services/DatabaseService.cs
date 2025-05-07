@@ -8,7 +8,7 @@ using Windows.Storage;
 
 namespace JpnStudyTool.Services
 {
-    public record SessionInfo(string SessionId, string? Name, string? ImagePath, string StartTime, string? EndTime, int TotalTokensUsedSession, string LastModified);
+    public record SessionInfo(string SessionId, string? Name, string? ImagePath, string StartTime, string? EndTime, int TotalTokensUsedSession, string LastModified, bool IsDefaultFreeSession);
     public record SessionEntryInfo(long EntryId, string SentenceText, string TimestampCaptured, string? TimestampDetailOpened, string? AnalysisTypeUsed, string? AnalysisResultJson, bool IsAiAnalysisCachedAtSave);
 
 
@@ -244,7 +244,7 @@ namespace JpnStudyTool.Services
         {
             var sessions = new List<SessionInfo>();
             string sql = @"
-                SELECT SessionId, Name, ImagePath, StartTime, EndTime, TotalTokensUsedSession, LastModified
+                SELECT SessionId, Name, ImagePath, StartTime, EndTime, TotalTokensUsedSession, LastModified, IsDefaultFreeSession
                 FROM Sessions
                 WHERE IsDefaultFreeSession = 0
                 ORDER BY LastModified DESC;";
@@ -264,7 +264,8 @@ namespace JpnStudyTool.Services
                         reader.GetString(3),
                         reader.IsDBNull(4) ? null : reader.GetString(4),
                         reader.GetInt32(5),
-                        reader.GetString(6)
+                        reader.GetString(6),
+                        reader.GetInt64(7) == 1
                     ));
                 }
             }

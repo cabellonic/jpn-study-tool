@@ -13,21 +13,23 @@ namespace JpnStudyTool.Views
         {
             this.InitializeComponent();
             ViewModel = new MainHubViewModel();
+            this.DataContext = ViewModel;
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            if (ViewModel.LoadDataCommand.CanExecute(null))
+            System.Diagnostics.Debug.WriteLine("[MainHubPage] OnNavigatedTo called.");
+            if (ViewModel != null)
             {
-                await ViewModel.LoadDataCommand.ExecuteAsync(null);
+                System.Diagnostics.Debug.WriteLine($"[MainHubPage] Forcing LoadDataAsync execution for testing.");
+                await ViewModel.LoadDataAsync();
             }
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             base.OnNavigatedFrom(e);
-            ViewModel.Cleanup();
         }
     }
 }

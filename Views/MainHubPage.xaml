@@ -1,5 +1,4 @@
-﻿<!--  Views/MainHubPage.xaml  -->
-<Page
+﻿<Page
     x:Class="JpnStudyTool.Views.MainHubPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -15,13 +14,13 @@
     mc:Ignorable="d">
 
     <Page.Resources>
-        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
     </Page.Resources>
 
     <Grid Padding="15">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -41,7 +40,7 @@
                 Content="Settings" />
         </Grid>
 
-        <StackPanel Grid.Row="1" Margin="0,0,0,25">
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
             <TextBlock
                 Margin="0,0,0,10"
                 Style="{ThemeResource TitleTextBlockStyle}"
@@ -74,12 +73,9 @@
                                         Height="80"
                                         Margin="0,0,0,5"
                                         HorizontalAlignment="Center"
+                                        Source="{x:Bind DisplayImageSource, Mode=OneWay}"
                                         Stretch="UniformToFill"
-                                        Visibility="{x:Bind HasImagePath, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <Image.Source>
-                                            <BitmapImage UriSource="ms-appx:///Assets/StoreLogo.png" />
-                                        </Image.Source>
-                                    </Image>
+                                        Visibility="{x:Bind HasImagePath, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     <Border
                                         Height="80"
                                         Margin="0,0,0,5"
@@ -96,6 +92,7 @@
                                     <TextBlock
                                         HorizontalAlignment="Center"
                                         FontWeight="SemiBold"
+                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                         Text="{x:Bind Name}"
                                         TextTrimming="CharacterEllipsis" />
                                     <TextBlock
@@ -123,7 +120,7 @@
 
         <StackPanel
             Grid.Row="2"
-            Margin="0,0,0,25"
+            Margin="0,0,0,20"
             HorizontalAlignment="Center"
             Orientation="Horizontal"
             Spacing="15">
@@ -151,8 +148,17 @@
             </Button>
         </StackPanel>
 
-        <Border
+        <Button
             Grid.Row="3"
+            Margin="0,0,0,15"
+            HorizontalAlignment="Center"
+            Command="{x:Bind ViewModel.EndActiveSessionCommand}"
+            Content="End Current Session"
+            Style="{StaticResource SecondaryButtonStyle}"
+            Visibility="{x:Bind ViewModel.IsSessionCurrentlyActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <Border
+            Grid.Row="4"
             Margin="0,0,0,10"
             Padding="10"
             Background="AliceBlue">
@@ -163,13 +169,23 @@
                 Text="Activity Graph Area (Coming Soon)" />
         </Border>
 
-        <Grid Grid.Row="4">
-            <TextBlock
+        <Grid Grid.Row="5">
+            <StackPanel
                 HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                FontSize="10"
-                Foreground="Gray"
-                Text="{x:Bind ViewModel.ConnectedJoystickName, Mode=OneWay}" />
+                Orientation="Horizontal"
+                Spacing="10">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="11"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                    Text="{x:Bind ViewModel.ActiveSessionDisplayName, Mode=OneWay, FallbackValue='No active session'}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="10"
+                    Foreground="Gray"
+                    Text="{x:Bind ViewModel.ConnectedJoystickName, Mode=OneWay}" />
+            </StackPanel>
             <StackPanel
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
@@ -191,7 +207,7 @@
         </Grid>
 
         <ProgressRing
-            Grid.RowSpan="5"
+            Grid.RowSpan="6"
             Width="50"
             Height="50"
             HorizontalAlignment="Center"

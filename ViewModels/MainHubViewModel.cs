@@ -7,15 +7,16 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JpnStudyTool.Services;
+using JpnStudyTool.Views;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Gaming.Input;
 using Windows.Storage;
 
-
 namespace JpnStudyTool.ViewModels
 {
-
     public partial class SessionDisplayItem : ObservableObject
     {
         public string SessionId { get; }
@@ -38,21 +39,14 @@ namespace JpnStudyTool.ViewModels
         [ObservableProperty]
         private string _lastModifiedDisplay;
 
-
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(ShowDefaultImage))]
         private bool _hasImagePath;
 
-
         public bool ShowDefaultImage => !HasImagePath;
-
 
         [ObservableProperty]
         private BitmapImage? _displayImageSource;
-
-
-        private Uri? _originalImageUri;
-
 
         public SessionDisplayItem(SessionInfo sessionInfo)
         {
@@ -60,86 +54,59 @@ namespace JpnStudyTool.ViewModels
             Name = sessionInfo.Name ?? "Unnamed Session";
             ImagePath = sessionInfo.ImagePath;
             TotalTokensUsedSession = sessionInfo.TotalTokensUsedSession;
-
+            HasImagePath = false;
+            DisplayImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
             StartTimeDisplay = "Loading...";
             EndTimeDisplay = "-";
             LastModifiedDisplay = "Loading...";
-
-            HasImagePath = !string.IsNullOrEmpty(ImagePath);
-
-            DisplayImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
         }
-
 
         public async Task LoadDetailsAsync(SessionInfo sessionInfo)
         {
-            try
+            Name = sessionInfo.Name ?? "Unnamed Session";
+            ImagePath = sessionInfo.ImagePath;
+            TotalTokensUsedSession = sessionInfo.TotalTokensUsedSession;
+
+            try { StartTimeDisplay = DateTime.Parse(sessionInfo.StartTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g"); } catch { StartTimeDisplay = "Invalid Date"; }
+            try { EndTimeDisplay = !string.IsNullOrEmpty(sessionInfo.EndTime) ? DateTime.Parse(sessionInfo.EndTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g") : (sessionInfo.IsDefaultFreeSession ? "-" : "Interrupted"); } catch { EndTimeDisplay = "-"; }
+            try { LastModifiedDisplay = DateTime.Parse(sessionInfo.LastModified, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g"); } catch { LastModifiedDisplay = "Invalid Date"; }
+
+            bool imageSuccessfullyLoaded = false;
+            BitmapImage? newImageSource = null;
+
+            if (!string.IsNullOrEmpty(ImagePath))
             {
-
-                Name = sessionInfo.Name ?? "Unnamed Session";
-                ImagePath = sessionInfo.ImagePath;
-                TotalTokensUsedSession = sessionInfo.TotalTokensUsedSession;
-                try { StartTimeDisplay = DateTime.Parse(sessionInfo.StartTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g"); } catch { StartTimeDisplay = "Invalid Date"; }
-                try { EndTimeDisplay = !string.IsNullOrEmpty(sessionInfo.EndTime) ? DateTime.Parse(sessionInfo.EndTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g") : "Interrupted"; } catch { EndTimeDisplay = "-"; }
-                try { LastModifiedDisplay = DateTime.Parse(sessionInfo.LastModified, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g"); } catch { LastModifiedDisplay = "Invalid Date"; }
-
-
-                bool imageSuccessfullyLoaded = false;
-                BitmapImage? newImageSource = null;
-                Uri? newUri = null;
-
-                if (!string.IsNullOrEmpty(ImagePath))
+                try
                 {
-                    try
+                    StorageFile file = await StorageFile.GetFileFromPathAsync(ImagePath);
+                    newImageSource = new BitmapImage();
+                    using (var stream = await file.OpenAsync(FileAccessMode.Read))
                     {
-
-                        StorageFile file = await StorageFile.GetFileFromPathAsync(ImagePath);
-                        newUri = new Uri(ImagePath);
-                        newImageSource = new BitmapImage(newUri);
-                        imageSuccessfullyLoaded = true;
-                        System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] Image loaded from: {ImagePath}");
+                        await newImageSource.SetSourceAsync(stream);
                     }
-                    catch (System.IO.FileNotFoundException) { System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] Image file not found: {ImagePath}"); imageSuccessfullyLoaded = false; }
-                    catch (UriFormatException) { System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] Invalid image path format: {ImagePath}"); imageSuccessfullyLoaded = false; }
-                    catch (ArgumentException) { System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] ArgumentException for path: {ImagePath}"); imageSuccessfullyLoaded = false; }
-                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] Error loading image {ImagePath}: {ex.Message}"); imageSuccessfullyLoaded = false; }
+                    imageSuccessfullyLoaded = true;
                 }
-
-
-                if (!imageSuccessfullyLoaded)
-                {
-                    newUri = new Uri("ms-appx:///Assets/default-session.png");
-                    newImageSource = new BitmapImage(newUri);
-                }
-
-
-                if (imageSuccessfullyLoaded != HasImagePath) HasImagePath = imageSuccessfullyLoaded;
-                if (newUri != _originalImageUri)
-                {
-                    _originalImageUri = newUri;
-                    DisplayImageSource = newImageSource;
-                }
+                catch (Exception) { imageSuccessfullyLoaded = false; }
             }
-            catch (Exception outerEx)
-            {
 
-                System.Diagnostics.Debug.WriteLine($"[SessionDisplayItem {SessionId}] Error loading details: {outerEx.Message}");
-                HasImagePath = false;
+            if (imageSuccessfullyLoaded && newImageSource != null)
+            {
+                DisplayImageSource = newImageSource;
+                HasImagePath = true;
+            }
+            else
+            {
                 DisplayImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
+                HasImagePath = false;
             }
         }
     }
 
-
-
     public partial class MainHubViewModel : ObservableObject
     {
-
         private readonly DatabaseService _dbService;
         private readonly SessionManagerService _sessionManager;
-        private readonly SettingsService _settingsService;
         private readonly DispatcherQueue _dispatcherQueue;
-
 
         [ObservableProperty]
         private ObservableCollection<SessionDisplayItem> _recentSessions = new();
@@ -150,6 +117,14 @@ namespace JpnStudyTool.ViewModels
         [ObservableProperty] private string _connectedJoystickName = "Joystick: None";
         [ObservableProperty] private bool _isLoading = false;
 
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanEndSession))]
+        private bool _isSessionCurrentlyActive = false;
+
+        [ObservableProperty]
+        private string _activeSessionDisplayName = "No active session";
+
+        public bool CanEndSession => IsSessionCurrentlyActive;
 
         public IAsyncRelayCommand LoadDataCommand { get; }
         public IAsyncRelayCommand<string> ContinueSessionCommand { get; }
@@ -157,17 +132,14 @@ namespace JpnStudyTool.ViewModels
         public IAsyncRelayCommand StartFreeSessionCommand { get; }
         public IRelayCommand GoToVocabularyCommand { get; }
         public IRelayCommand GoToSettingsCommand { get; }
-
+        public IAsyncRelayCommand EndActiveSessionCommand { get; }
 
         public MainHubViewModel()
         {
-
             _dispatcherQueue = DispatcherQueue.GetForCurrentThread()
                 ?? throw new InvalidOperationException("Cannot get DispatcherQueue for current thread.");
             _dbService = DatabaseService.Instance;
-            _settingsService = new SettingsService();
             _sessionManager = App.SessionManager ?? throw new InvalidOperationException("Session Manager not initialized in App.");
-
 
             LoadDataCommand = new AsyncRelayCommand(LoadDataAsync);
             ContinueSessionCommand = new AsyncRelayCommand<string>(ContinueSessionAsync);
@@ -175,20 +147,66 @@ namespace JpnStudyTool.ViewModels
             StartFreeSessionCommand = new AsyncRelayCommand(StartFreeSessionAsync);
             GoToVocabularyCommand = new RelayCommand(NavigateToVocabulary);
             GoToSettingsCommand = new RelayCommand(NavigateToSettings);
+            EndActiveSessionCommand = new AsyncRelayCommand(EndSessionAndRefreshAsync, () => CanEndSession);
 
-
+            _sessionManager.ActiveSessionChanged += SessionManager_ActiveSessionChanged_Hub;
+            UpdateSessionStatusDisplay();
             TryRegisterGamepadEvents();
             UpdateJoystickStatus();
         }
 
-
-        public void Cleanup() { TryUnregisterGamepadEvents(); System.Diagnostics.Debug.WriteLine("[MainHubVM] Cleanup called."); }
-        private void TryRegisterGamepadEvents() { try { Gamepad.GamepadAdded += OnGamepadConnectionChanged; Gamepad.GamepadRemoved += OnGamepadConnectionChanged; } catch (Exception ex) { /* log */ } }
-        private void TryUnregisterGamepadEvents() { try { Gamepad.GamepadAdded -= OnGamepadConnectionChanged; Gamepad.GamepadRemoved -= OnGamepadConnectionChanged; } catch (Exception ex) { /* log */ } }
-
-        private async Task LoadDataAsync()
+        private async Task EndSessionAndRefreshAsync()
         {
-            if (!_dispatcherQueue.HasThreadAccess) { await DispatcherQueue_EnqueueAsync(async () => await LoadDataAsync()); return; }
+            if (!IsSessionCurrentlyActive) return;
+            await _sessionManager.EndCurrentSessionAsync();
+        }
+
+        private void SessionManager_ActiveSessionChanged_Hub(object? sender, EventArgs e)
+        {
+            _dispatcherQueue?.TryEnqueue(UpdateSessionStatusDisplay);
+        }
+
+        private async void UpdateSessionStatusDisplay()
+        {
+            string? currentActiveId = _sessionManager.ActiveSessionId;
+            IsSessionCurrentlyActive = !string.IsNullOrEmpty(currentActiveId);
+
+            if (!IsSessionCurrentlyActive)
+            {
+                ActiveSessionDisplayName = "No active session";
+            }
+            else if (_sessionManager.IsFreeSessionActive)
+            {
+                ActiveSessionDisplayName = "Active: Free Session";
+            }
+            else
+            {
+                var activeSessionFromList = RecentSessions.FirstOrDefault(s => s.SessionId == currentActiveId);
+                if (activeSessionFromList != null)
+                {
+                    ActiveSessionDisplayName = $"Active: {activeSessionFromList.Name}";
+                }
+                else
+                {
+                    var sessionsFromDb = await _dbService.GetAllNamedSessionsAsync();
+                    var sessionFromDb = sessionsFromDb.FirstOrDefault(s => s.SessionId == currentActiveId);
+                    ActiveSessionDisplayName = sessionFromDb != null ? $"Active: {sessionFromDb.Name}" : $"Active Session: ID {currentActiveId?.Substring(0, 8)}...";
+                }
+            }
+            EndActiveSessionCommand.NotifyCanExecuteChanged();
+        }
+
+        public void Cleanup()
+        {
+            TryUnregisterGamepadEvents();
+            if (_sessionManager != null) _sessionManager.ActiveSessionChanged -= SessionManager_ActiveSessionChanged_Hub;
+        }
+        private void TryRegisterGamepadEvents() { try { Gamepad.GamepadAdded += OnGamepadConnectionChanged; Gamepad.GamepadRemoved += OnGamepadConnectionChanged; } catch (Exception) { } }
+        private void TryUnregisterGamepadEvents() { try { Gamepad.GamepadAdded -= OnGamepadConnectionChanged; Gamepad.GamepadRemoved -= OnGamepadConnectionChanged; } catch (Exception) { } }
+
+        public async Task LoadDataAsync()
+        {
+            if (!_dispatcherQueue.HasThreadAccess) { await DispatcherQueue_EnqueueAsync(LoadDataAsync); return; }
             IsLoading = true;
             RecentSessions.Clear();
             try
@@ -196,34 +214,83 @@ namespace JpnStudyTool.ViewModels
                 var (today, last30, total) = await _dbService.GetGlobalTokenCountsAsync();
                 GlobalTokensToday = today; GlobalTokensLast30 = last30; GlobalTokensTotal = total;
                 UpdateJoystickStatus();
+                UpdateSessionStatusDisplay();
 
                 var sessionsFromDb = await _dbService.GetAllNamedSessionsAsync();
-                var recentSessionInfos = sessionsFromDb
+                var sessionInfosToDisplay = sessionsFromDb
                     .OrderByDescending(s => DateTime.Parse(s.LastModified, null, System.Globalization.DateTimeStyles.RoundtripKind))
-                    .Take(5).ToList();
+                    .ToList();
 
-                List<SessionDisplayItem> itemsToAdd = recentSessionInfos.Select(s => new SessionDisplayItem(s)).ToList();
+                List<SessionDisplayItem> itemsToAdd = sessionInfosToDisplay.Select(s => new SessionDisplayItem(s)).ToList();
                 foreach (var item in itemsToAdd) { RecentSessions.Add(item); }
 
-                var loadTasks = itemsToAdd.Select((item, index) => item.LoadDetailsAsync(recentSessionInfos[index])).ToList();
-                _ = Task.Run(() => Task.WhenAll(loadTasks));
-
+                if (itemsToAdd.Any())
+                {
+                    var loadTasks = itemsToAdd.Select((item, index) => item.LoadDetailsAsync(sessionInfosToDisplay[index])).ToList();
+                    _ = Task.Run(() => Task.WhenAll(loadTasks));
+                }
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM] Error loading data: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM LoadDataAsync] CRITICAL Error: {ex.Message}\n{ex.StackTrace}"); }
             finally { IsLoading = false; }
         }
 
-        private async Task ContinueSessionAsync(string? sessionId) { if (string.IsNullOrEmpty(sessionId) || IsLoading) return; IsLoading = true; try { await _sessionManager.StartExistingSessionAsync(sessionId); if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); } } catch (Exception ex) { /* log */ } finally { IsLoading = false; } }
-        private async Task CreateNewSessionAsync() { if (IsLoading) return; IsLoading = true; try { string sessionName = "New Session " + DateTime.Now.ToString("yy-MM-dd HH:mm"); string? imagePath = null; /* TODO: Dialogo */ await _sessionManager.CreateAndStartNewSessionAsync(sessionName, imagePath); if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); } } catch (Exception ex) { /* log */ } finally { IsLoading = false; } }
-        private async Task StartFreeSessionAsync() { if (IsLoading) return; IsLoading = true; try { await _sessionManager.StartFreeSessionAsync(); if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); } } catch (Exception ex) { /* log */ } finally { IsLoading = false; } }
+        private async Task ContinueSessionAsync(string? sessionId)
+        {
+            if (string.IsNullOrEmpty(sessionId) || IsLoading) return;
+            IsLoading = true;
+            try
+            {
+                await _sessionManager.StartExistingSessionAsync(sessionId);
+                if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM ContinueSessionAsync] Error: {ex.Message}"); }
+            finally { IsLoading = false; }
+        }
+
+        private async Task CreateNewSessionAsync()
+        {
+            if (IsLoading) return;
+            XamlRoot? xamlRoot = null;
+            if (App.MainWin?.Content is Frame rootFrame && rootFrame.Content is Page currentPage) { xamlRoot = currentPage.XamlRoot; }
+            else if (App.MainWin != null) { xamlRoot = App.MainWin.Content.XamlRoot; }
+            if (xamlRoot == null) { System.Diagnostics.Debug.WriteLine("[MainHubVM CreateNew] XamlRoot not found."); return; }
+
+            var dialog = new NewSessionDialog { XamlRoot = xamlRoot };
+            ContentDialogResult result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                string sessionName = dialog.SessionName;
+                string? imagePath = dialog.SelectedImagePath;
+                IsLoading = true;
+                try
+                {
+                    await _sessionManager.CreateAndStartNewSessionAsync(sessionName, imagePath);
+                    if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM CreateNew] Error: {ex.Message}"); }
+                finally { IsLoading = false; }
+            }
+        }
+
+        private async Task StartFreeSessionAsync()
+        {
+            if (IsLoading) return;
+            IsLoading = true;
+            try
+            {
+                await _sessionManager.StartFreeSessionAsync();
+                if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM StartFreeSessionAsync] Error: {ex.Message}"); }
+            finally { IsLoading = false; }
+        }
+
         private void NavigateToVocabulary() { System.Diagnostics.Debug.WriteLine("[MainHubVM] TODO: Navigate to Vocabulary View"); }
         private void NavigateToSettings() { App.MainWin?.ShowSettingsWindow(); }
-
-        private void UpdateJoystickStatus() { try { ConnectedJoystickName = Gamepad.Gamepads.Any() ? $"Joystick: Connected" : "Joystick: None"; } catch (Exception ex) { ConnectedJoystickName = "Joystick: Error"; } }
+        private void UpdateJoystickStatus() { try { ConnectedJoystickName = Gamepad.Gamepads.Any() ? $"Joystick: Connected" : "Joystick: None"; } catch (Exception) { ConnectedJoystickName = "Joystick: Error"; } }
         private void OnGamepadConnectionChanged(object? sender, Gamepad e) { _dispatcherQueue?.TryEnqueue(UpdateJoystickStatus); }
 
-
-        private Task DispatcherQueue_EnqueueAsync(Action function, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal) { var tcs = new TaskCompletionSource(); if (_dispatcherQueue == null) { tcs.SetException(new InvalidOperationException("DispatcherQueue is null on MainHubViewModel.")); return tcs.Task; } if (!_dispatcherQueue.TryEnqueue(priority, () => { try { function(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue action on MainHubViewModel.")); } return tcs.Task; }
-        private Task DispatcherQueue_EnqueueAsync(Func<Task> asyncFunction, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal) { var tcs = new TaskCompletionSource(); if (_dispatcherQueue == null) { tcs.SetException(new InvalidOperationException("DispatcherQueue is null on MainHubViewModel.")); return tcs.Task; } if (!_dispatcherQueue.TryEnqueue(priority, async () => { try { await asyncFunction(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue async action on MainHubViewModel.")); } return tcs.Task; }
+        private Task DispatcherQueue_EnqueueAsync(Func<Task> asyncFunction) { var tcs = new TaskCompletionSource(); if (!_dispatcherQueue.TryEnqueue(async () => { try { await asyncFunction(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue async action.")); } return tcs.Task; }
     }
 }

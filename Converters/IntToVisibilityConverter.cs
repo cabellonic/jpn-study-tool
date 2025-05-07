@@ -1,4 +1,4 @@
-﻿// En Converters/IntToVisibilityConverter.cs (o similar)
+﻿// Converters/IntToVisibilityConverter.cs
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
