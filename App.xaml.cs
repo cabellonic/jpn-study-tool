@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using JpnStudyTool.Models;
 using JpnStudyTool.Services;
 using JpnStudyTool.ViewModels;
@@ -23,7 +24,8 @@ public partial class App : Application
     private static GlobalHotkeyService? _hotkeyService;
     internal static KeyboardHotkeyService? _keyboardHotkeyService;
     private static DispatcherQueue? _mainDispatcherQueue;
-    private static SettingsService? _settingsService;
+    private static SettingsService? _settingsService; // Keep settings service
+    private static SessionManagerService? _sessionManager; // Add Session Manager
 
     private static SUBCLASSPROC? _appSubclassProcDelegate;
     private const uint APP_SUBCLASS_ID = 101;
@@ -35,15 +37,28 @@ public partial class App : Application
         SQLitePCL.Batteries_V2.Init();
     }
 
-    protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         _mainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
         _settingsService = new SettingsService();
 
+        try
+        {
+            await DatabaseService.Instance.InitializeDatabaseAsync();
+            await DatabaseService.Instance.ClearActiveSessionMarkerAsync();
+        }
+        catch (Exception dbEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"[App] CRITICAL DATABASE ERROR on init: {dbEx.Message}");
+        }
+
+
+        _sessionManager = new SessionManagerService(DatabaseService.Instance, _settingsService);
+        await _sessionManager.InitializeAsync();
+
         var mainWindowInstance = new MainWindow();
 
         HWND hwnd = default;
-
         try
         {
             hwnd = (HWND)WindowNative.GetWindowHandle(mainWindowInstance);
@@ -59,17 +74,37 @@ public partial class App : Application
         }
 
         AppSettings currentSettings = _settingsService.LoadSettings();
-
-        System.Diagnostics.Debug.WriteLine("[App] Passing initial settings to MainWindow instance...");
+        System.Diagnostics.Debug.WriteLine("[App] Passing initial settings to MainWindow instance for local bindings...");
         mainWindowInstance.UpdateLocalBindings(currentSettings);
+
+        if (mainWindowInstance.ViewModel != null)
+        {
+            // mainWindowInstance.ViewModel.SessionManager = _sessionManager;
+        }
+
 
         ReloadAndRestartGlobalServices(_mainWndHwnd, currentSettings);
 
         MainWin = mainWindowInstance;
         MainWin.Activate();
 
+        MainWin.Closed += async (sender, e) => await HandleAppCloseAsync();
+
+
         System.Diagnostics.Debug.WriteLine("[App] OnLaunched sequence complete.");
     }
+
+    private async Task HandleAppCloseAsync()
+    {
+        if (_sessionManager != null)
+        {
+            await _sessionManager.EndAndSaveCurrentSessionAsync();
+        }
+        CleanupServices();
+        System.Diagnostics.Debug.WriteLine("[App] HandleAppCloseAsync finished.");
+    }
+
+    internal static SessionManagerService? SessionManager => _sessionManager;
 
     private static void SetupWindowSubclassing(HWND hwnd)
     {
@@ -106,8 +141,6 @@ public partial class App : Application
             case WM_NCDESTROY:
                 System.Diagnostics.Debug.WriteLine("[App Subclass] WM_NCDESTROY received. Removing app subclass.");
                 RemoveWindowSubclassing(hWnd);
-                CleanupServices();
-                _mainWndHwnd = default;
                 break;
         }
         return PInvoke.DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -123,29 +156,13 @@ public partial class App : Application
             if (!removed)
             {
                 int error = Marshal.GetLastPInvokeError();
-                if (error != 1460)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[App] Failed to remove subclass. Error: {error}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[App] Subclass likely already removed (Error 1460).");
-                }
+                if (error != 1460) System.Diagnostics.Debug.WriteLine($"[App] Failed to remove subclass. Error: {error}");
+                else System.Diagnostics.Debug.WriteLine($"[App] Subclass likely already removed (Error 1460).");
             }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"[App] Subclass removed successfully.");
-            }
+            else { System.Diagnostics.Debug.WriteLine($"[App] Subclass removed successfully."); }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[App] Exception during RemoveWindowSubclass: {ex.Message}");
-        }
-        finally
-        {
-            _isSubclassed = false;
-            _appSubclassProcDelegate = null;
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] Exception during RemoveWindowSubclass: {ex.Message}"); }
+        finally { _isSubclassed = false; _appSubclassProcDelegate = null; }
     }
 
     internal static void ReloadAndRestartGlobalServices(HWND? hwndCheck = null, AppSettings? settings = null)
@@ -178,8 +195,7 @@ public partial class App : Application
         int? targetPid = currentSettings.SelectedGlobalGamepadPid;
         currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_TOGGLE", out string? toggleJoyCode);
         currentSettings.GlobalJoystickBindings.TryGetValue("GLOBAL_MENU", out string? menuJoyCode);
-        System.Diagnostics.Debug.WriteLine($"[App] Gamepad Settings - VID:{targetVid?.ToString("X4") ?? "N"}, PID:{targetPid?.ToString("X4") ?? "N"}, ToggleJoy:'{toggleJoyCode ?? "N"}', MenuJoy:'{menuJoyCode ?? "N"}'");
-
+        System.Diagnostics.Debug.WriteLine($"[App] Settings Used - VID:{targetVid?.ToString("X4") ?? "N"}, PID:{targetPid?.ToString("X4") ?? "N"}, ToggleJoy:'{toggleJoyCode ?? "N"}', MenuJoy:'{menuJoyCode ?? "N"}'");
         if (targetVid.HasValue && targetPid.HasValue && _mainDispatcherQueue != null)
         {
             System.Diagnostics.Debug.WriteLine($"[App] Configuring GlobalHotkeyService...");
@@ -188,24 +204,14 @@ public partial class App : Application
                 _hotkeyService = new GlobalHotkeyService(_mainDispatcherQueue, targetVid.Value, targetPid.Value, toggleJoyCode, menuJoyCode);
                 _hotkeyService.StartListener();
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[App] Failed to restart GlobalHotkeyService: {ex.Message}");
-                _hotkeyService = null;
-            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] Failed to restart GlobalHotkeyService: {ex.Message}"); _hotkeyService = null; }
         }
-        else
-        {
-            System.Diagnostics.Debug.WriteLine("[App] No global gamepad configured or DispatcherQueue null. GlobalHotkeyService not started.");
-            _hotkeyService = null;
-        }
+        else { System.Diagnostics.Debug.WriteLine("[App] No global gamepad configured or Dispatcher Queue null. GlobalHotkeyService not started."); _hotkeyService = null; }
 
-        string? toggleKeyStr = null;
-        string? menuKeyStr = null;
+        string? toggleKeyStr = null; string? menuKeyStr = null;
         currentSettings.GlobalKeyboardBindings?.TryGetValue("GLOBAL_TOGGLE", out toggleKeyStr);
         currentSettings.GlobalKeyboardBindings?.TryGetValue("GLOBAL_MENU", out menuKeyStr);
-        System.Diagnostics.Debug.WriteLine($"[App] Keyboard Settings - ToggleKey:'{toggleKeyStr ?? "N"}', MenuKey:'{menuKeyStr ?? "N"}'");
-
+        System.Diagnostics.Debug.WriteLine($"[App] Settings Used - ToggleKey:'{toggleKeyStr ?? "N"}', MenuKey:'{menuKeyStr ?? "N"}'");
         if (currentHwnd != default && currentHwnd != HWND.Null)
         {
             System.Diagnostics.Debug.WriteLine($"[App] Configuring KeyboardHotkeyService (using HWND {currentHwnd})...");
@@ -218,39 +224,40 @@ public partial class App : Application
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[App] Failed to start KeyboardHotkeyService: {ex.Message}");
-                _keyboardHotkeyService?.Dispose();
-                _keyboardHotkeyService = null;
+                _keyboardHotkeyService?.Dispose(); _keyboardHotkeyService = null;
             }
         }
-        else
-        {
-            System.Diagnostics.Debug.WriteLine("[App] KeyboardHotkeyService not started due to missing or invalid HWND.");
-            _keyboardHotkeyService?.Dispose();
-            _keyboardHotkeyService = null;
-        }
+        else { System.Diagnostics.Debug.WriteLine("[App] KeyboardHotkeyService not started due to missing HWND."); _keyboardHotkeyService?.Dispose(); _keyboardHotkeyService = null; }
 
         if (MainWin?.ViewModel != null)
         {
-            System.Diagnostics.Debug.WriteLine("[App] Notifying MainWindowViewModel to reload settings...");
+            System.Diagnostics.Debug.WriteLine("[App] Notifying MainWindowViewModel to reload settings AFTER service restart...");
             MainWin.DispatcherQueue?.TryEnqueue(() => { MainWin.ViewModel.LoadCurrentSettings(); });
         }
+
         if (MainWin != null)
         {
-            System.Diagnostics.Debug.WriteLine("[App] Notifying MainWindow to update local bindings...");
+            System.Diagnostics.Debug.WriteLine("[App] Notifying MainWindow to update local bindings AFTER service restart...");
             MainWin.DispatcherQueue?.TryEnqueue(() => { MainWin.UpdateLocalBindings(currentSettings); });
         }
-
 
         System.Diagnostics.Debug.WriteLine("[App] Finished reloading global services.");
     }
 
-
     public static void RequestToggleWindow()
     {
-        _mainDispatcherQueue?.TryEnqueue(() =>
+        if (_sessionManager == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[App RequestToggleWindow] SessionManager is null, cannot handle global open trigger.");
+            _mainDispatcherQueue?.TryEnqueue(() => { MainWin?.ToggleVisibility(); });
+            return;
+        }
+
+
+        _mainDispatcherQueue?.TryEnqueue(async () =>
         {
             System.Diagnostics.Debug.WriteLine("[App] RequestToggleWindow called.");
-            ViewModel?.HandleGlobalOpenTrigger();
+            await _sessionManager.HandleGlobalOpenTriggerAsync();
             MainWin?.ToggleVisibility();
         });
     }
@@ -283,15 +290,9 @@ public partial class App : Application
                 _keyboardHotkeyService.RegisterHotkeys(settings.GlobalKeyboardBindings ?? new Dictionary<string, string?>());
                 System.Diagnostics.Debug.WriteLine("[App] Keyboard hotkeys re-registered.");
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[App] Failed to re-register keyboard hotkeys: {ex.Message}");
-            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] Failed to re-register keyboard hotkeys: {ex.Message}"); }
         }
-        else
-        {
-            System.Diagnostics.Debug.WriteLine("[App] Keyboard hotkeys NOT re-registered (service or settings null?).");
-        }
+        else { System.Diagnostics.Debug.WriteLine("[App] Keyboard hotkeys NOT re-registered (service null?)."); }
         System.Diagnostics.Debug.WriteLine("[App] Global hotkeys (Joy+Key) resumed/re-registered.");
     }
 
@@ -304,5 +305,4 @@ public partial class App : Application
         _hotkeyService?.Dispose();
         _hotkeyService = null;
     }
-
 }
