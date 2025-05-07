@@ -12,6 +12,8 @@ using JpnStudyTool.Models;
 using JpnStudyTool.Models.AI;
 using JpnStudyTool.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Storage;
 
 namespace JpnStudyTool.ViewModels
 {
@@ -106,6 +108,41 @@ namespace JpnStudyTool.ViewModels
         public IAsyncRelayCommand GoBackToHubCommand { get; }
 
 
+        [ObservableProperty]
+        private string? _viewingSessionId;
+
+        [ObservableProperty]
+        private string _viewingSessionName = "Session History";
+
+        [ObservableProperty]
+        private BitmapImage? _viewingSessionImageSource;
+
+        [ObservableProperty]
+        private string _viewingSessionStartTimeDisplay = "Start time: N/A";
+
+        [ObservableProperty]
+        private string _viewingSessionTokensUsedDisplay = "Tokens: N/A";
+
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanStartThisSession))]
+        [NotifyPropertyChangedFor(nameof(CanEndThisSession))]
+        [NotifyPropertyChangedFor(nameof(CanGoToActiveSession))]
+        private bool _isViewingSessionTheActiveSession;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanGoToActiveSession))]
+        private bool _isAnySessionActiveGlobally;
+
+        public IAsyncRelayCommand StartThisSessionCommand { get; }
+        public IAsyncRelayCommand EndThisSessionCommand { get; }
+        public IRelayCommand GoToActiveSessionCommand { get; }
+
+        public bool CanStartThisSession => !IsViewingSessionTheActiveSession && !string.IsNullOrEmpty(ViewingSessionId);
+        public bool CanEndThisSession => IsViewingSessionTheActiveSession;
+        public bool CanGoToActiveSession => IsAnySessionActiveGlobally && !IsViewingSessionTheActiveSession;
+
+
         public MainWindowViewModel()
         {
             _dispatcherQueue = DispatcherQueue.GetForCurrentThread()
@@ -124,14 +161,20 @@ namespace JpnStudyTool.ViewModels
             LoadCurrentSettings();
             _clipboardService.JapaneseTextCopied += OnJapaneseTextCopied;
 
+
+
+            StartThisSessionCommand = new AsyncRelayCommand(ExecuteStartThisSessionAsync, () => CanStartThisSession);
+            EndThisSessionCommand = new AsyncRelayCommand(ExecuteEndThisSessionAsync, () => CanEndThisSession);
+            GoToActiveSessionCommand = new RelayCommand(ExecuteGoToActiveSession, () => CanGoToActiveSession);
+            if (_sessionManager != null) _sessionManager.ActiveSessionChanged += SessionManager_ActiveSessionChanged_MWVM;
+
             _ = LoadGlobalTokenStatsAsync();
             _clipboardService.StartMonitoring();
             System.Diagnostics.Debug.WriteLine("[MWVM] Constructor finished.");
         }
 
-        public async Task LoadCurrentSessionDataAsync()
+        public async Task LoadCurrentSessionDataAsync(string sessionIdToView)
         {
-            string? currentSessionId = _sessionManager.ActiveSessionId;
             await DispatcherQueue_EnqueueAsync(() =>
             {
                 CurrentSessionEntries.Clear();
@@ -139,27 +182,107 @@ namespace JpnStudyTool.ViewModels
                 IsHubViewActive = false;
                 IsDetailViewActive = false;
                 ApiErrorMessage = null;
-                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Cleared list for session: {currentSessionId ?? "None"}");
+
+                ViewingSessionId = sessionIdToView;
+                ViewingSessionName = "Loading session...";
+                ViewingSessionImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
+                ViewingSessionStartTimeDisplay = "Loading...";
+                ViewingSessionTokensUsedDisplay = "Loading...";
+                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData - DISPATCHER] Initializing view for session: {sessionIdToView}. ViewingSessionId set to: '{ViewingSessionId ?? "NULL"}'");
             });
 
-            if (string.IsNullOrEmpty(currentSessionId))
+            if (string.IsNullOrEmpty(sessionIdToView))
             {
-                System.Diagnostics.Debug.WriteLine("[MWVM LoadSessionData] No active session ID found.");
-                await DispatcherQueue_EnqueueAsync(() => IsLoading = false);
+                System.Diagnostics.Debug.WriteLine("[MWVM LoadSessionData] No session ID provided to view.");
+                await DispatcherQueue_EnqueueAsync(() =>
+                {
+                    ViewingSessionName = "Error: No session specified";
+                    IsLoading = false;
+                    UpdateGlobalSessionActiveStatus();
+                });
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Loading entries for session: {currentSessionId}");
+            System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Loading entries for session to view: {sessionIdToView}");
             try
             {
-                var entriesFromDb = await _dbService.GetEntriesForSessionAsync(currentSessionId);
+                SessionInfo? sessionToViewInfo = null;
+                string freeSessionId = await _dbService.GetOrCreateFreeSessionAsync();
+
+                if (sessionIdToView == freeSessionId)
+                {
+                    string startTimeForFree = DateTime.MinValue.ToString("o");
+                    int tokensForFree = 0;
+
+                    sessionToViewInfo = await _dbService.GetSessionByIdOrDefaultAsync(freeSessionId) ??
+                                        new SessionInfo(freeSessionId, "Free Session", null, startTimeForFree, null, tokensForFree, startTimeForFree, true);
+
+                }
+                else
+                {
+                    var allNamedSessions = await _dbService.GetAllNamedSessionsAsync();
+                    sessionToViewInfo = allNamedSessions.FirstOrDefault(s => s.SessionId == sessionIdToView);
+                }
+
+                if (sessionToViewInfo != null)
+                {
+                    await DispatcherQueue_EnqueueAsync(async () =>
+                    {
+                        ViewingSessionName = string.IsNullOrEmpty(sessionToViewInfo.Name) ? "Unnamed Session" : sessionToViewInfo.Name;
+
+                        if (!string.IsNullOrEmpty(sessionToViewInfo.ImagePath))
+                        {
+                            try
+                            {
+                                StorageFile file = await StorageFile.GetFileFromPathAsync(sessionToViewInfo.ImagePath);
+                                BitmapImage img = new BitmapImage();
+                                using (var stream = await file.OpenAsync(FileAccessMode.Read))
+                                {
+                                    await img.SetSourceAsync(stream);
+                                }
+                                ViewingSessionImageSource = img;
+                                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Loaded image for session {sessionIdToView} from: {sessionToViewInfo.ImagePath}");
+                            }
+                            catch (Exception imgEx)
+                            {
+                                ViewingSessionImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
+                                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Failed to load image for session {sessionIdToView} from {sessionToViewInfo.ImagePath}: {imgEx.Message}");
+                            }
+                        }
+                        else
+                        {
+                            ViewingSessionImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
+                            System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] No image path for session {sessionIdToView}. Using default.");
+                        }
+
+                        try
+                        {
+                            ViewingSessionStartTimeDisplay = $"Started: {DateTime.Parse(sessionToViewInfo.StartTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g")}";
+                        }
+                        catch { ViewingSessionStartTimeDisplay = "Start time: N/A"; }
+
+                        ViewingSessionTokensUsedDisplay = $"Tokens Used (Session): {sessionToViewInfo.TotalTokensUsedSession}";
+                    });
+                }
+                else
+                {
+                    await DispatcherQueue_EnqueueAsync(() =>
+                    {
+                        ViewingSessionName = "Session Not Found";
+                        ViewingSessionImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
+                        ViewingSessionStartTimeDisplay = "Start time: N/A";
+                        ViewingSessionTokensUsedDisplay = "Tokens: N/A";
+                        System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Session info not found in DB for ID: {sessionIdToView}");
+                    });
+                }
+
+                var entriesFromDb = await _dbService.GetEntriesForSessionAsync(sessionIdToView);
                 await DispatcherQueue_EnqueueAsync(() =>
                 {
                     _aiAnalysisCache.Clear();
                     foreach (var entryInfo in entriesFromDb)
                     {
                         var displayItem = new SessionEntryDisplayItem(entryInfo);
-
                         if (entryInfo.AnalysisTypeUsed == "AI" && !string.IsNullOrWhiteSpace(entryInfo.AnalysisResultJson))
                         {
                             try
@@ -169,43 +292,120 @@ namespace JpnStudyTool.ViewModels
                                 {
                                     _aiAnalysisCache[displayItem.Sentence] = cachedAnalysis;
                                     displayItem.IsAiAnalysisCached = true;
-                                    System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Pre-filled cache for EntryId: {entryInfo.EntryId}");
                                 }
                             }
-                            catch (JsonException jsonEx)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Error deserializing cached JSON for EntryId {entryInfo.EntryId}: {jsonEx.Message}");
-                                displayItem.IsAiAnalysisCached = false;
-                            }
+                            catch (JsonException) { displayItem.IsAiAnalysisCached = false; }
                         }
-                        else
-                        {
-                            displayItem.IsAiAnalysisCached = false;
-                        }
-
+                        else { displayItem.IsAiAnalysisCached = false; }
                         CurrentSessionEntries.Add(displayItem);
                     }
                     if (!IsDetailViewActive)
                     {
                         SelectedSentenceIndex = CurrentSessionEntries.Count > 0 ? CurrentSessionEntries.Count - 1 : -1;
                     }
-                    System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Loaded {CurrentSessionEntries.Count} entries into UI.");
+                    System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Loaded {CurrentSessionEntries.Count} entries into UI for session {sessionIdToView}.");
                 });
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Error: {ex.Message}"); }
-            finally { await DispatcherQueue_EnqueueAsync(() => IsLoading = false); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData] Error loading session data: {ex.Message}\nStackTrace: {ex.StackTrace}");
+                await DispatcherQueue_EnqueueAsync(() => ViewingSessionName = "Error loading session");
+            }
+            finally
+            {
+                await DispatcherQueue_EnqueueAsync(() =>
+                {
+                    IsLoading = false;
+                    UpdateGlobalSessionActiveStatus();
+                    System.Diagnostics.Debug.WriteLine($"[MWVM LoadSessionData - FINALLY] Called UpdateGlobalSessionActiveStatus. ViewingSessionId is now: '{ViewingSessionId ?? "NULL"}'");
+                });
+            }
         }
+
+        private async Task ExecuteStartThisSessionAsync()
+        {
+            if (string.IsNullOrEmpty(ViewingSessionId) || IsViewingSessionTheActiveSession) return;
+
+            System.Diagnostics.Debug.WriteLine($"[MWVM] ExecuteStartThisSessionAsync for ViewingSessionId: {ViewingSessionId}");
+            IsLoading = true;
+            await _sessionManager.StartExistingSessionAsync(ViewingSessionId);
+            IsLoading = false;
+        }
+
+        private async Task ExecuteEndThisSessionAsync()
+        {
+            if (!IsViewingSessionTheActiveSession) return;
+
+            System.Diagnostics.Debug.WriteLine($"[MWVM] ExecuteEndThisSessionAsync for ActiveSessionId: {_sessionManager.ActiveSessionId}");
+            IsLoading = true;
+            await _sessionManager.EndCurrentSessionAsync();
+            IsLoading = false;
+        }
+
+        private async void ExecuteGoToActiveSession()
+        {
+            string? globalActiveId = _sessionManager.ActiveSessionId;
+
+            System.Diagnostics.Debug.WriteLine($"[MWVM ExecuteGoToActiveSession] Called. GlobalActiveId: '{globalActiveId ?? "NULL"}', ViewingSessionId: '{ViewingSessionId ?? "NULL"}'");
+
+            if (!string.IsNullOrEmpty(globalActiveId) && globalActiveId != ViewingSessionId)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MWVM ExecuteGoToActiveSession] Navigating directly to active session: {globalActiveId}");
+                if (App.MainWin != null)
+                {
+                    await App.MainWin.NavigateToSessionViewAsync(globalActiveId);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[MWVM ExecuteGoToActiveSession] App.MainWin is NULL. Cannot navigate.");
+                }
+            }
+            else if (string.IsNullOrEmpty(globalActiveId))
+            {
+                System.Diagnostics.Debug.WriteLine("[MWVM ExecuteGoToActiveSession] No global session active. Returning to Hub.");
+                await GoBackToHubCommand.ExecuteAsync(null);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[MWVM ExecuteGoToActiveSession] Already viewing the active session or globalActiveId is null.");
+            }
+        }
+
+
+        private void UpdateGlobalSessionActiveStatus()
+        {
+            string? currentGlobalActiveId = _sessionManager.ActiveSessionId;
+            bool oldIsViewingActive = IsViewingSessionTheActiveSession;
+            bool oldIsAnyActive = IsAnySessionActiveGlobally;
+
+            IsAnySessionActiveGlobally = !string.IsNullOrEmpty(_sessionManager.ActiveSessionId);
+            IsViewingSessionTheActiveSession = !string.IsNullOrEmpty(ViewingSessionId) && ViewingSessionId == _sessionManager.ActiveSessionId;
+
+            System.Diagnostics.Debug.WriteLine($"[MWVM UpdateGlobalStatus] ViewingSessionId: '{ViewingSessionId ?? "NULL"}'");
+            System.Diagnostics.Debug.WriteLine($"[MWVM UpdateGlobalStatus] GlobalActiveSessionId: '{currentGlobalActiveId ?? "NULL"}'");
+            System.Diagnostics.Debug.WriteLine($"[MWVM UpdateGlobalStatus] IsViewingSessionTheActiveSession: {IsViewingSessionTheActiveSession}");
+            System.Diagnostics.Debug.WriteLine($"[MWVM UpdateGlobalStatus] IsAnySessionActiveGlobally: {IsAnySessionActiveGlobally}");
+
+            if (oldIsViewingActive != IsViewingSessionTheActiveSession) OnPropertyChanged(nameof(IsViewingSessionTheActiveSession));
+            if (oldIsAnyActive != IsAnySessionActiveGlobally) OnPropertyChanged(nameof(IsAnySessionActiveGlobally));
+
+            OnPropertyChanged(nameof(CanStartThisSession));
+            OnPropertyChanged(nameof(CanEndThisSession));
+            OnPropertyChanged(nameof(CanGoToActiveSession));
+
+            StartThisSessionCommand.NotifyCanExecuteChanged();
+            EndThisSessionCommand.NotifyCanExecuteChanged();
+            GoToActiveSessionCommand.NotifyCanExecuteChanged();
+        }
+        private void SessionManager_ActiveSessionChanged_MWVM(object? sender, EventArgs e)
+        {
+            _dispatcherQueue?.TryEnqueue(UpdateGlobalSessionActiveStatus);
+        }
+
 
         private async Task LoadGlobalTokenStatsAsync()
         {
             try { var (today, last30, total) = await _dbService.GetGlobalTokenCountsAsync(); await DispatcherQueue_EnqueueAsync(() => { GlobalTokensToday = today; GlobalTokensLast30 = last30; GlobalTokensTotal = total; }); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MWVM LoadGlobalStats] Error: {ex.Message}"); }
-        }
-
-        private async void SessionManager_ActiveSessionChanged(object? sender, EventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("[MWVM] Received ActiveSessionChanged event. Reloading session data...");
-            await LoadCurrentSessionDataAsync();
-            await LoadGlobalTokenStatsAsync();
         }
 
         private async void OnJapaneseTextCopied(object? sender, string text)
@@ -331,7 +531,22 @@ namespace JpnStudyTool.ViewModels
 
         public async Task HandleGlobalOpenAnalysisAsync() { if (_loadedAiTriggerMode == AiAnalysisTrigger.OnGlobalOpen && _isAIModeActive && !string.IsNullOrWhiteSpace(_activeApiKey)) { SessionEntryDisplayItem? lastItem = null; await DispatcherQueue_EnqueueAsync(() => { lastItem = CurrentSessionEntries.LastOrDefault(); }); if (lastItem != null) { System.Diagnostics.Debug.WriteLine($"[MWVM] Handling Global Open Trigger - Caching last sentence..."); await CacheAiAnalysisAsync(lastItem.Sentence, lastItem); } else { System.Diagnostics.Debug.WriteLine($"[MWVM] Handling Global Open Trigger - No sentences."); } } }
 
-        public void Cleanup() { _clipboardService.StopMonitoring(); _clipboardService.JapaneseTextCopied -= OnJapaneseTextCopied; if (_sessionManager != null) _sessionManager.ActiveSessionChanged -= SessionManager_ActiveSessionChanged; RequestLoadDefinitionHtml = null; RequestRenderSentenceWebView = null; RequestUpdateDefinitionTokenDetails = null; System.Diagnostics.Debug.WriteLine("[MWVM] Cleanup called."); }
+        public void Cleanup()
+        {
+            _clipboardService.StopMonitoring();
+            _clipboardService.JapaneseTextCopied -= OnJapaneseTextCopied;
+
+            if (_sessionManager != null)
+            {
+                _sessionManager.ActiveSessionChanged -= SessionManager_ActiveSessionChanged_MWVM;
+            }
+
+            RequestLoadDefinitionHtml = null;
+            RequestRenderSentenceWebView = null;
+            RequestUpdateDefinitionTokenDetails = null;
+
+            System.Diagnostics.Debug.WriteLine("[MWVM] Cleanup called and event subscriptions removed.");
+        }
         private Task DispatcherQueue_EnqueueAsync(Action function, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal) { var tcs = new TaskCompletionSource(); if (_dispatcherQueue == null) { tcs.SetException(new InvalidOperationException("DispatcherQueue is null")); return tcs.Task; } if (!_dispatcherQueue.TryEnqueue(priority, () => { try { function(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue action.")); } return tcs.Task; }
         private Task DispatcherQueue_EnqueueAsync(Func<Task> asyncFunction, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal) { var tcs = new TaskCompletionSource(); if (_dispatcherQueue == null) { tcs.SetException(new InvalidOperationException("DispatcherQueue is null")); return tcs.Task; } if (!_dispatcherQueue.TryEnqueue(priority, async () => { try { await asyncFunction(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue async action.")); } return tcs.Task; }
         private Task<T> DispatcherQueue_EnqueueAsync<T>(Func<T> function, DispatcherQueuePriority priority = DispatcherQueuePriority.Normal) { var tcs = new TaskCompletionSource<T>(); if (_dispatcherQueue == null) { tcs.SetException(new InvalidOperationException("DispatcherQueue is null")); return tcs.Task; } if (!_dispatcherQueue.TryEnqueue(priority, () => { try { T result = function(); tcs.SetResult(result); } catch (Exception ex) { tcs.SetException(ex); } })) { tcs.SetException(new InvalidOperationException("Failed to enqueue function.")); } return tcs.Task; }

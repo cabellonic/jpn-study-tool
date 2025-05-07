@@ -421,5 +421,44 @@ namespace JpnStudyTool.Services
             return activity;
         }
 
+        public async Task<SessionInfo?> GetSessionByIdOrDefaultAsync(string sessionId)
+        {
+            SessionInfo? session = null;
+            string sql = @"
+        SELECT SessionId, Name, ImagePath, StartTime, EndTime, TotalTokensUsedSession, LastModified, IsDefaultFreeSession 
+        FROM Sessions
+        WHERE SessionId = @SessionId
+        LIMIT 1;";
+
+            try
+            {
+                using var connection = GetConnection();
+                using var command = connection.CreateCommand();
+                command.CommandText = sql;
+                command.Parameters.AddWithValue("@SessionId", sessionId);
+
+                using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    session = new SessionInfo(
+                        reader.GetString(0),
+                        reader.IsDBNull(1) ? null : reader.GetString(1),
+                        reader.IsDBNull(2) ? null : reader.GetString(2),
+                        reader.GetString(3),
+                        reader.IsDBNull(4) ? null : reader.GetString(4),
+                        reader.GetInt32(5),
+                        reader.GetString(6),
+                        reader.GetInt64(7) == 1
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DatabaseService] GetSessionByIdOrDefaultAsync Error for ID {sessionId}: {ex.Message}");
+            }
+            return session;
+        }
+
+
     }
 }

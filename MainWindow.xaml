@@ -36,16 +36,92 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid Grid.Row="0" Margin="0,0,0,15">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock
+
+                    <Border
                         Grid.Column="0"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="Session History" />
+                        Width="90"
+                        Height="60"
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Top"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <Border.Background>
+                            <ImageBrush
+                                AlignmentX="Center"
+                                AlignmentY="Center"
+                                ImageSource="{Binding ViewingSessionImageSource, Mode=OneWay}"
+                                Stretch="UniformToFill" />
+                        </Border.Background>
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="Gray"
+                            Text="IMG"
+                            Visibility="{Binding ViewingSessionImageSource, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                        <TextBlock
+                            Margin="0,0,0,2"
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            Text="{Binding ViewingSessionName, Mode=OneWay, FallbackValue='Session'}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Margin="0,0,0,1"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{Binding ViewingSessionStartTimeDisplay, Mode=OneWay, FallbackValue='Start time: N/A'}" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{Binding ViewingSessionTokensUsedDisplay, Mode=OneWay, FallbackValue='Tokens: N/A'}" />
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            Padding="8,4"
+                            Background="{ThemeResource SystemFillColorSuccessBrush}"
+                            Command="{Binding StartThisSessionCommand}"
+                            Content="Start This Session"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            IsEnabled="{Binding CanStartThisSession, Mode=OneWay}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Visibility="{Binding IsViewingSessionTheActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" />
+                        <Button
+                            Padding="8,4"
+                            Background="{ThemeResource SystemFillColorCriticalBrush}"
+                            Command="{Binding EndThisSessionCommand}"
+                            Content="End This Session"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            IsEnabled="{Binding CanEndThisSession, Mode=OneWay}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Visibility="{Binding IsViewingSessionTheActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Button
+                            Padding="8,4"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Command="{Binding GoToActiveSessionCommand}"
+                            Content="Go to Active Session"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            IsEnabled="{Binding CanGoToActiveSession, Mode=OneWay}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Visibility="{Binding CanGoToActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </StackPanel>
                 </Grid>
 
                 <ListView
@@ -58,7 +134,7 @@
                     SelectionMode="Single"
                     TabIndex="0">
                     <ListView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="viewmodels:SessionEntryDisplayItem">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <TextBlock
                                     VerticalAlignment="Center"

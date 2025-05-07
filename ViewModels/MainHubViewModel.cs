@@ -71,33 +71,36 @@ namespace JpnStudyTool.ViewModels
             try { EndTimeDisplay = !string.IsNullOrEmpty(sessionInfo.EndTime) ? DateTime.Parse(sessionInfo.EndTime, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g") : (sessionInfo.IsDefaultFreeSession ? "-" : "Interrupted"); } catch { EndTimeDisplay = "-"; }
             try { LastModifiedDisplay = DateTime.Parse(sessionInfo.LastModified, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime().ToString("g"); } catch { LastModifiedDisplay = "Invalid Date"; }
 
-            bool imageSuccessfullyLoaded = false;
-            BitmapImage? newImageSource = null;
+            bool specificImageLoadedSuccessfully = false;
+            BitmapImage? newSpecificImageSource = null;
 
             if (!string.IsNullOrEmpty(ImagePath))
             {
                 try
                 {
                     StorageFile file = await StorageFile.GetFileFromPathAsync(ImagePath);
-                    newImageSource = new BitmapImage();
+                    newSpecificImageSource = new BitmapImage();
                     using (var stream = await file.OpenAsync(FileAccessMode.Read))
                     {
-                        await newImageSource.SetSourceAsync(stream);
+                        await newSpecificImageSource.SetSourceAsync(stream);
                     }
-                    imageSuccessfullyLoaded = true;
+                    specificImageLoadedSuccessfully = true;
                 }
-                catch (Exception) { imageSuccessfullyLoaded = false; }
+                catch (Exception)
+                {
+                    specificImageLoadedSuccessfully = false;
+                }
             }
 
-            if (imageSuccessfullyLoaded && newImageSource != null)
+            if (specificImageLoadedSuccessfully && newSpecificImageSource != null)
             {
-                DisplayImageSource = newImageSource;
+                DisplayImageSource = newSpecificImageSource;
                 HasImagePath = true;
             }
             else
             {
                 DisplayImageSource = new BitmapImage(new Uri("ms-appx:///Assets/default-session.png"));
-                HasImagePath = false;
+                HasImagePath = true;
             }
         }
     }
@@ -236,15 +239,22 @@ namespace JpnStudyTool.ViewModels
 
         private async Task ContinueSessionAsync(string? sessionId)
         {
+
             if (string.IsNullOrEmpty(sessionId) || IsLoading) return;
+
             IsLoading = true;
             try
             {
-                await _sessionManager.StartExistingSessionAsync(sessionId);
-                if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+                if (App.MainWin != null) await App.MainWin.NavigateToSessionViewAsync(sessionId);
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM ContinueSessionAsync] Error: {ex.Message}"); }
-            finally { IsLoading = false; }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainHubVM ContinueSessionAsync] Error: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         private async Task CreateNewSessionAsync()
@@ -265,8 +275,8 @@ namespace JpnStudyTool.ViewModels
                 IsLoading = true;
                 try
                 {
-                    await _sessionManager.CreateAndStartNewSessionAsync(sessionName, imagePath);
-                    if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+                    String newSessionId = await _sessionManager.CreateAndStartNewSessionAsync(sessionName, imagePath);
+                    if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(newSessionId); }
                 }
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM CreateNew] Error: {ex.Message}"); }
                 finally { IsLoading = false; }
@@ -280,7 +290,11 @@ namespace JpnStudyTool.ViewModels
             try
             {
                 await _sessionManager.StartFreeSessionAsync();
-                if (App.MainWin != null) { await App.MainWin.NavigateToSessionViewAsync(); }
+                string? freeSessionId = _sessionManager.ActiveSessionId;
+                if (App.MainWin != null && !string.IsNullOrEmpty(freeSessionId))
+                {
+                    await App.MainWin.NavigateToSessionViewAsync(freeSessionId);
+                }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainHubVM StartFreeSessionAsync] Error: {ex.Message}"); }
             finally { IsLoading = false; }

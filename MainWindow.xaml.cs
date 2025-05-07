@@ -135,10 +135,10 @@ namespace JpnStudyTool
             System.Diagnostics.Debug.WriteLine("[MainWindow NavigateToHub] Navigation call made to MainHubPage.");
         }
 
-        public async Task NavigateToSessionViewAsync()
+        public async Task NavigateToSessionViewAsync(string sessionIdToDisplay)
         {
             if (contentFrame == null) return;
-            await ViewModel.LoadCurrentSessionDataAsync();
+            await ViewModel.LoadCurrentSessionDataAsync(sessionIdToDisplay);
             ViewModel.IsHubViewActive = false;
             System.Diagnostics.Debug.WriteLine("[MainWindow] Navigated TO Session View (List)");
             TrySetFocusToListOrRoot();

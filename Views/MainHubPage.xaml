@@ -69,26 +69,31 @@
                                     Width="150"
                                     Padding="10"
                                     Orientation="Vertical">
-                                    <Image
-                                        Height="80"
-                                        Margin="0,0,0,5"
-                                        HorizontalAlignment="Center"
-                                        Source="{x:Bind DisplayImageSource, Mode=OneWay}"
-                                        Stretch="UniformToFill"
-                                        Visibility="{x:Bind HasImagePath, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    <Border
-                                        Height="80"
-                                        Margin="0,0,0,5"
-                                        Background="LightGray"
-                                        CornerRadius="4"
-                                        Visibility="{x:Bind ShowDefaultImage, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            FontSize="48"
-                                            Foreground="DarkGray"
-                                            Text="?" />
-                                    </Border>
+
+                                    <Grid Height="80" Margin="0,0,0,5">
+                                        <Border CornerRadius="4" Visibility="{x:Bind HasImagePath, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Border.Background>
+                                                <ImageBrush
+                                                    AlignmentX="Center"
+                                                    AlignmentY="Center"
+                                                    ImageSource="{x:Bind DisplayImageSource, Mode=OneWay}"
+                                                    Stretch="UniformToFill" />
+                                            </Border.Background>
+                                        </Border>
+
+                                        <Border
+                                            Background="LightGray"
+                                            CornerRadius="4"
+                                            Visibility="{x:Bind ShowDefaultImage, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="48"
+                                                Foreground="DarkGray"
+                                                Text="?" />
+                                        </Border>
+                                    </Grid>
+
                                     <TextBlock
                                         HorizontalAlignment="Center"
                                         FontWeight="SemiBold"
@@ -148,15 +153,6 @@
             </Button>
         </StackPanel>
 
-        <Button
-            Grid.Row="3"
-            Margin="0,0,0,15"
-            HorizontalAlignment="Center"
-            Command="{x:Bind ViewModel.EndActiveSessionCommand}"
-            Content="End Current Session"
-            Style="{StaticResource SecondaryButtonStyle}"
-            Visibility="{x:Bind ViewModel.IsSessionCurrentlyActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
         <Border
             Grid.Row="4"
             Margin="0,0,0,10"
@@ -173,24 +169,32 @@
             <StackPanel
                 HorizontalAlignment="Left"
                 Orientation="Horizontal"
-                Spacing="10">
+                Spacing="5">
                 <TextBlock
                     VerticalAlignment="Center"
                     FontSize="11"
                     FontWeight="SemiBold"
                     Foreground="{ThemeResource SystemFillColorCautionBrush}"
                     Text="{x:Bind ViewModel.ActiveSessionDisplayName, Mode=OneWay, FallbackValue='No active session'}" />
-                <TextBlock
+                <Button
+                    MinHeight="0"
+                    Padding="4,2"
                     VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.EndActiveSessionCommand}"
+                    Content="End Session"
                     FontSize="10"
-                    Foreground="Gray"
-                    Text="{x:Bind ViewModel.ConnectedJoystickName, Mode=OneWay}" />
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Visibility="{x:Bind ViewModel.IsSessionCurrentlyActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
             <StackPanel
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
                 Spacing="10">
+                <TextBlock
+                    FontSize="10"
+                    Foreground="Gray"
+                    Text="{x:Bind ViewModel.ConnectedJoystickName, Mode=OneWay}" />
                 <TextBlock
                     FontSize="10"
                     Foreground="Gray"
