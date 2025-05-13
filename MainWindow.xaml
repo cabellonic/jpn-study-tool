@@ -86,40 +86,32 @@
                     </StackPanel>
 
                     <StackPanel
+                        Grid.Row="0"
                         Grid.Column="2"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Orientation="Horizontal"
                         Spacing="8">
                         <Button
-                            Padding="8,4"
-                            Background="{ThemeResource SystemFillColorSuccessBrush}"
                             Command="{Binding StartThisSessionCommand}"
                             Content="Start This Session"
                             FontSize="12"
-                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                             IsEnabled="{Binding CanStartThisSession, Mode=OneWay}"
-                            Style="{StaticResource SecondaryButtonStyle}"
+                            Style="{StaticResource StartSessionButtonStyle}"
                             Visibility="{Binding IsViewingSessionTheActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" />
                         <Button
-                            Padding="8,4"
-                            Background="{ThemeResource SystemFillColorCriticalBrush}"
                             Command="{Binding EndThisSessionCommand}"
                             Content="End This Session"
                             FontSize="12"
-                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                             IsEnabled="{Binding CanEndThisSession, Mode=OneWay}"
-                            Style="{StaticResource SecondaryButtonStyle}"
+                            Style="{StaticResource EndSessionButtonStyle}"
                             Visibility="{Binding IsViewingSessionTheActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <Button
-                            Padding="8,4"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Command="{Binding GoToActiveSessionCommand}"
                             Content="Go to Active Session"
                             FontSize="12"
-                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                             IsEnabled="{Binding CanGoToActiveSession, Mode=OneWay}"
-                            Style="{StaticResource SecondaryButtonStyle}"
+                            Style="{StaticResource GoToActiveSessionButtonStyle}"
                             Visibility="{Binding CanGoToActiveSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </StackPanel>
                 </Grid>
@@ -169,7 +161,7 @@
                     HorizontalAlignment="Left"
                     Command="{Binding GoBackToHubCommand}"
                     Content="Back to Hub"
-                    Style="{StaticResource SecondaryButtonStyle}" />
+                    Style="{StaticResource SubtleActionButtonStyle}" />
             </Grid>
 
             <Grid

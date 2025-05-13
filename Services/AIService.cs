@@ -178,7 +178,7 @@ public class AIService
         sb.AppendLine($"   - 'surface': The exact text of the token (including punctuation).");
         sb.AppendLine($"   - 'reading': The most likely hiragana reading **for the entire 'surface' text**. Ensure the reading covers all characters in the surface. For punctuation, use the same character.");
         sb.AppendLine($"   - 'contextualMeaning': A concise explanation in {targetLanguage} of **what this specific token means and its function/nuance in the context of the sentence**. If it's a conjugated form or grammatical pattern, explain the combined meaning (e.g., '... (probably is the reason)', '... (state of being)'). Focus on clarity over excessive grammatical jargon.");
-        sb.AppendLine($"   - 'partOfSpeech': A simple classification (e.g., Verb, Noun, Particle, Adjective, Adverb, Punctuation, Conjugated Form, Grammatical Pattern)."); // Simplified this slightly
+        sb.AppendLine($"   - 'partOfSpeech': A simple classification (e.g., Verb, Noun, Particle, Adjective, Adverb, Punctuation, Conjugated Form, Grammatical Pattern).");
         sb.AppendLine($"   - 'baseForm': The dictionary form if applicable, otherwise the surface form.");
         sb.AppendLine($"   - 'startIndex': The starting character index (0-indexed).");
         sb.AppendLine($"   - 'endIndex': The ending character index (exclusive, 0-indexed). Ensure spans are contiguous.");
